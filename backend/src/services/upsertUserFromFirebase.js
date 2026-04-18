@@ -4,7 +4,7 @@ import { User } from "../models/User.js";
 
 /**
  * @param {import('firebase-admin').auth.DecodedIdToken} decoded
- * @param {{ name?: string }} opts
+ * @param {{ name?: string, loginOnly?: boolean }} opts
  */
 export async function upsertUserFromFirebase(decoded, opts = {}) {
   const phone10 = firebasePhoneTo10(decoded.phone_number);
@@ -18,10 +18,19 @@ export async function upsertUserFromFirebase(decoded, opts = {}) {
   const role = adminPhones.has(phone10) ? "admin" : "customer";
   const firebaseUid = decoded.uid;
   const nameIn = String(opts.name ?? "").trim();
+  const loginOnly = Boolean(opts.loginOnly);
 
   let user = await User.findOne({ $or: [{ firebaseUid }, { phone: phone10 }] }).exec();
 
   if (!user) {
+    // If loginOnly is true, user must exist in database
+    if (loginOnly) {
+      const err = new Error("No user found with this phone number");
+      err.code = "USER_NOT_FOUND";
+      throw err;
+    }
+    
+    // Otherwise, create new user for signup
     const name = nameIn || "Member";
     user = await User.create({
       firebaseUid,

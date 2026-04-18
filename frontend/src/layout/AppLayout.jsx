@@ -2,12 +2,13 @@ import { useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
+import { ProfileMenu } from '../components/ProfileMenu.jsx'
 
 export function AppLayout() {
   const title = import.meta.env.VITE_APP_TITLE ?? ''
   const location = useLocation()
   const { itemCount } = useCart()
-  const { user, ready, logout } = useAuth()
+  const { user, ready } = useAuth()
 
   const path = location.pathname
   const isCart = path.startsWith('/cart') || path.startsWith('/checkout')
@@ -26,7 +27,7 @@ export function AppLayout() {
           >
             {title}
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-3">
+          <nav className="flex items-center gap-2 sm:gap-3 ml-auto">
             {!ready ? (
               <span className="text-xs text-stone-400" aria-hidden>
                 …
@@ -41,16 +42,6 @@ export function AppLayout() {
                     Admin
                   </Link>
                 ) : null}
-                <span className="hidden max-w-[7rem] truncate text-xs text-stone-500 sm:inline">
-                  {user.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  className="inline-flex min-h-[44px] items-center justify-center rounded-full px-3 text-sm font-medium text-stone-700 [-webkit-tap-highlight-color:transparent] active:underline"
-                >
-                  Log out
-                </button>
               </>
             ) : (
               <Link
@@ -63,19 +54,34 @@ export function AppLayout() {
             )}
             <Link
               to="/cart"
-              className={`relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full px-4 text-sm font-medium no-underline transition [-webkit-tap-highlight-color:transparent] active:scale-[0.98] ${
+              className={`relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full no-underline transition [-webkit-tap-highlight-color:transparent] active:scale-[0.98] ${
                 isCart
                   ? 'bg-stone-900 text-white shadow-sm'
                   : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
               }`}
+              aria-label="Shopping cart"
             >
-              Cart
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5"
+              >
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+              </svg>
               {itemCount > 0 ? (
                 <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold leading-none text-white">
                   {itemCount > 99 ? '99+' : itemCount}
                 </span>
               ) : null}
             </Link>
+            {user && <ProfileMenu />}
           </nav>
         </div>
       </header>

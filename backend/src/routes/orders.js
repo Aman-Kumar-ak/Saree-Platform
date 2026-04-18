@@ -2,6 +2,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { Order } from "../models/Order.js";
 import { placeCodOrder } from "../services/placeCodOrder.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 export const ordersRouter = Router();
 
@@ -55,9 +56,16 @@ function validateAddress(body) {
   };
 }
 
-ordersRouter.post("/", async (req, res, next) => {
+ordersRouter.post("/", requireAuth, async (req, res, next) => {
   try {
     const { items, paymentMethod } = req.body ?? {};
+    const userId = req.authUser?._id;
+
+    if (!userId) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
+
     if (paymentMethod && paymentMethod !== "cod") {
       res.status(400).json({ error: "Only COD is supported for now" });
       return;
@@ -88,7 +96,7 @@ ordersRouter.post("/", async (req, res, next) => {
       return;
     }
 
-    const order = await placeCodOrder({ lines, address: addr.address });
+    const order = await placeCodOrder({ lines, address: addr.address, userId });
     res.status(201).json({
       order: {
         orderNumber: order.orderNumber,

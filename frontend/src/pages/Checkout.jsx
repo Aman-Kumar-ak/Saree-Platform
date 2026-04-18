@@ -1,22 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiUrl } from '../config/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
-
-const initialForm = {
-  fullName: '',
-  phone: '',
-  line1: '',
-  line2: '',
-  city: '',
-  state: '',
-  pincode: '',
-}
+import { useToast } from '../context/ToastContext.jsx'
+import { AddressSelector } from '../components/AddressSelector.jsx'
+import LoginPromptModal from '../components/LoginPromptModal.jsx'
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const { user, ready, authFetch } = useAuth()
   const { lines, itemCount, clear } = useCart()
-  const [form, setForm] = useState(initialForm)
+  const { addToast } = useToast()
+  const [selectedAddress, setSelectedAddress] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -28,42 +24,58 @@ export default function Checkout() {
     }
   }, [])
 
+  // If not logged in
+  if (ready && !user) {
+    return <LoginPromptModal />
+  }
+
+  // Show loading state while checking auth
+  if (!ready) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+        <p className="text-sm text-stone-600">Loading...</p>
+      </main>
+    )
+  }
+
   const subtotal = lines.reduce(
     (s, l) => s + (Number(l.price) || 0) * l.quantity,
     0
   )
 
-  function update(field, value) {
-    setForm((f) => ({ ...f, [field]: value }))
-  }
-
   async function onSubmit(e) {
     e.preventDefault()
     setError(null)
+
     if (lines.length === 0) {
       setError('Your cart is empty.')
       return
     }
+
+    if (!selectedAddress) {
+      setError('Please select or add a delivery address.')
+      return
+    }
+
     setSubmitting(true)
     try {
       const items = lines.map((l) => ({
         productId: l.productId,
         quantity: l.quantity,
       }))
-      const r = await fetch(apiUrl('/api/orders'), {
+      const r = await authFetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymentMethod: 'cod',
           items,
           address: {
-            fullName: form.fullName.trim(),
-            phone: form.phone.replace(/\s/g, ''),
-            line1: form.line1.trim(),
-            line2: form.line2.trim(),
-            city: form.city.trim(),
-            state: form.state.trim(),
-            pincode: form.pincode.trim(),
+            fullName: selectedAddress.fullName,
+            phone: selectedAddress.phone,
+            line1: selectedAddress.line1,
+            line2: selectedAddress.line2,
+            city: selectedAddress.city,
+            state: selectedAddress.state,
+            pincode: selectedAddress.pincode,
           },
         }),
       })
@@ -79,6 +91,7 @@ export default function Checkout() {
         setError(data.error || 'Could not place order. Try again.')
         return
       }
+      addToast(`Order ${data.order.orderNumber} placed successfully!`, 'success', 3000)
       clear()
       navigate(`/order/${encodeURIComponent(data.order.orderNumber)}`, {
         state: { order: data.order },
@@ -115,140 +128,50 @@ export default function Checkout() {
       </p>
 
       <div className="mt-6 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
+        <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="text-sm font-semibold text-stone-800 mb-4">
+            Delivery Address
+          </h2>
+          <AddressSelector
+            value={selectedAddress}
+            onChange={setSelectedAddress}
+          />
+        </div>
+
         <form
           onSubmit={onSubmit}
-          className="space-y-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5"
+          className="mt-6 space-y-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5 lg:mt-0"
         >
-          <h2 className="text-sm font-semibold text-stone-800">
-            Delivery details
-          </h2>
           <div>
-            <label
-              htmlFor="fullName"
-              className="block text-xs font-medium text-stone-600"
-            >
-              Full name
-            </label>
-            <input
-              id="fullName"
-              name="fullName"
-              autoComplete="name"
-              required
-              className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none ring-stone-400 focus:border-stone-400 focus:ring-2"
-              value={form.fullName}
-              onChange={(e) => update('fullName', e.target.value)}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="phone"
-              className="block text-xs font-medium text-stone-600"
-            >
-              Mobile (10 digits)
-            </label>
-            <input
-              id="phone"
-              name="phone"
-              inputMode="numeric"
-              autoComplete="tel"
-              required
-              maxLength={10}
-              className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none focus:border-stone-400 focus:ring-2"
-              value={form.phone}
-              onChange={(e) =>
-                update('phone', e.target.value.replace(/\D/g, '').slice(0, 10))
-              }
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="line1"
-              className="block text-xs font-medium text-stone-600"
-            >
-              Address line 1
-            </label>
-            <input
-              id="line1"
-              name="line1"
-              autoComplete="address-line1"
-              required
-              className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none focus:border-stone-400 focus:ring-2"
-              value={form.line1}
-              onChange={(e) => update('line1', e.target.value)}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="line2"
-              className="block text-xs font-medium text-stone-600"
-            >
-              Address line 2 (optional)
-            </label>
-            <input
-              id="line2"
-              name="line2"
-              autoComplete="address-line2"
-              className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none focus:border-stone-400 focus:ring-2"
-              value={form.line2}
-              onChange={(e) => update('line2', e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="city"
-                className="block text-xs font-medium text-stone-600"
-              >
-                City
-              </label>
-              <input
-                id="city"
-                name="city"
-                autoComplete="address-level2"
-                required
-                className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none focus:border-stone-400 focus:ring-2"
-                value={form.city}
-                onChange={(e) => update('city', e.target.value)}
-              />
+            <h2 className="text-sm font-semibold text-stone-800 mb-3">Summary</h2>
+            <ul className="space-y-2 text-sm text-stone-600">
+              {lines.map((l) => (
+                <li key={l.productId} className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate">
+                    {l.name}{' '}
+                    <span className="text-stone-400">×{l.quantity}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-stone-900">
+                    ₹
+                    {(
+                      (Number(l.price) || 0) * l.quantity
+                    ).toLocaleString('en-IN')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 border-t border-stone-200 pt-3 text-sm">
+              <div className="flex justify-between text-stone-600">
+                <span>Subtotal</span>
+                <span className="tabular-nums font-medium text-stone-900">
+                  ₹{subtotal.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-stone-500">
+                Shipping (if configured on the server) is included in the total
+                shown on the confirmation screen.
+              </p>
             </div>
-            <div>
-              <label
-                htmlFor="state"
-                className="block text-xs font-medium text-stone-600"
-              >
-                State
-              </label>
-              <input
-                id="state"
-                name="state"
-                autoComplete="address-level1"
-                required
-                className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none focus:border-stone-400 focus:ring-2"
-                value={form.state}
-                onChange={(e) => update('state', e.target.value)}
-              />
-            </div>
-          </div>
-          <div>
-            <label
-              htmlFor="pincode"
-              className="block text-xs font-medium text-stone-600"
-            >
-              PIN code
-            </label>
-            <input
-              id="pincode"
-              name="pincode"
-              inputMode="numeric"
-              autoComplete="postal-code"
-              required
-              maxLength={6}
-              className="mt-1 w-full min-h-[48px] rounded-xl border border-stone-200 px-3 text-base text-stone-900 outline-none focus:border-stone-400 focus:ring-2"
-              value={form.pincode}
-              onChange={(e) =>
-                update('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))
-              }
-            />
           </div>
 
           {error ? (
@@ -259,44 +182,12 @@ export default function Checkout() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !selectedAddress}
             className="flex min-h-[52px] w-full items-center justify-center rounded-xl bg-stone-900 text-base font-semibold text-white touch-manipulation [-webkit-tap-highlight-color:transparent] disabled:opacity-60 active:opacity-90"
           >
             {submitting ? 'Placing order…' : 'Place order (COD)'}
           </button>
         </form>
-
-        <aside className="mt-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5 lg:mt-0">
-          <h2 className="text-sm font-semibold text-stone-800">Summary</h2>
-          <ul className="mt-3 space-y-2 text-sm text-stone-600">
-            {lines.map((l) => (
-              <li key={l.productId} className="flex justify-between gap-2">
-                <span className="min-w-0 truncate">
-                  {l.name}{' '}
-                  <span className="text-stone-400">×{l.quantity}</span>
-                </span>
-                <span className="shrink-0 tabular-nums text-stone-900">
-                  ₹
-                  {(
-                    (Number(l.price) || 0) * l.quantity
-                  ).toLocaleString('en-IN')}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 border-t border-stone-200 pt-3 text-sm">
-            <div className="flex justify-between text-stone-600">
-              <span>Subtotal</span>
-              <span className="tabular-nums font-medium text-stone-900">
-                ₹{subtotal.toLocaleString('en-IN')}
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-stone-500">
-              Shipping (if configured on the server) is included in the total
-              shown on the confirmation screen.
-            </p>
-          </div>
-        </aside>
       </div>
     </main>
   )

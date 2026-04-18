@@ -76,6 +76,24 @@ export default function Login() {
     }
     setBusy(true)
     try {
+      // First, validate phone number with backend
+      const validateRes = await fetch(apiUrl('/api/auth/validate-phone'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: digits,
+          mode: mode === 'signup' ? 'signup' : 'login',
+        }),
+      })
+      const validateData = await validateRes.json().catch(() => ({}))
+      
+      if (!validateRes.ok) {
+        setError(validateData.error || 'Phone validation failed')
+        setBusy(false)
+        return
+      }
+
+      // Now request OTP from Firebase
       const auth = getFirebaseAuth()
       if (!verifierRef.current) {
         verifierRef.current = new RecaptchaVerifier(
@@ -93,7 +111,20 @@ export default function Login() {
       setConfirmation(conf)
       setStep('otp')
     } catch (e) {
-      setError(e?.message || 'Could not send OTP. Check Firebase Auth settings.')
+      // Clear verifier on error so it can be recreated on retry
+      try {
+        verifierRef.current?.clear?.()
+      } catch {
+        /* ignore */
+      }
+      verifierRef.current = null
+      
+      // Handle reCAPTCHA dismissal/cancellation
+      if (e?.code === 'auth/cancelled-popup-request' || e?.code === 'auth/popup-closed-by-user') {
+        setError('reCAPTCHA was cancelled. Please try again.')
+      } else {
+        setError(e?.message || 'Could not send OTP. Check Firebase Auth settings.')
+      }
     } finally {
       setBusy(false)
     }

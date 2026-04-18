@@ -10,6 +10,8 @@ import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
 import { ordersRouter } from "./routes/orders.js";
 import { productsRouter } from "./routes/products.js";
+import { userRouter } from "./routes/user.js";
+import addressesRouter from "./routes/addresses.js";
 
 const cfg = getConfig();
 const app = express();
@@ -29,6 +31,8 @@ app.use("/api/auth", requireDb, authRouter);
 app.use("/api/categories", requireDb, categoriesRouter);
 app.use("/api/products", requireDb, productsRouter);
 app.use("/api/orders", requireDb, ordersRouter);
+app.use("/api/user", requireDb, userRouter);
+app.use("/api/addresses", requireDb, addressesRouter);
 app.use("/api/admin", requireDb, adminRouter);
 
 app.use((err, _req, res, _next) => {

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { getConfig } from "../config/env.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { User } from "../models/User.js";
 
 function buildOrderNumber(prefix) {
   const t = new Date();
@@ -16,11 +17,18 @@ function buildOrderNumber(prefix) {
 /**
  * @param {{ productId: string, quantity: number }[]} lines
  * @param {object} address - validated address object
+ * @param {string} userId - user ID
  */
-export async function placeCodOrder({ lines, address }) {
+export async function placeCodOrder({ lines, address, userId }) {
   const { orderNumberPrefix, shippingFlatRupees } = getConfig();
   if (!lines?.length) {
     const err = new Error("Cart is empty");
+    err.code = "VALIDATION";
+    throw err;
+  }
+
+  if (!userId) {
+    const err = new Error("User ID is required");
     err.code = "VALIDATION";
     throw err;
   }
@@ -77,6 +85,7 @@ export async function placeCodOrder({ lines, address }) {
         [
           {
             orderNumber,
+            userId: new mongoose.Types.ObjectId(userId),
             items: snapshots,
             subtotal,
             shipping: shippingFlatRupees,
@@ -90,7 +99,20 @@ export async function placeCodOrder({ lines, address }) {
         ],
         { session }
       );
+
+      // Save the created order
       created = doc;
+
+      // Update user stats and add order ID to orderIds array
+      await User.findByIdAndUpdate(
+        userId,
+        {
+          $inc: { orderCount: 1, totalSpent: totalAmount },
+          $push: { orderIds: created._id },
+          $set: { lastOrderDate: new Date() },
+        },
+        { session }
+      );
     });
   } finally {
     await session.endSession();

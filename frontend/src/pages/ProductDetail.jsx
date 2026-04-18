@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiUrl } from '../config/api.js'
 import { useCart } from '../context/CartContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
 export default function ProductDetail() {
   const { slug } = useParams()
   const { addOrUpdate } = useCart()
+  const { addToast } = useToast()
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -104,28 +106,27 @@ export default function ProductDetail() {
         price: product.price,
         image: product.images?.[0] ?? '',
         quantity: qty,
-      },
-      { replace: true }
+      }
     )
+    addToast(`${qty}x ${product.name} added to cart`, 'success', 2500)
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8">
-      <div className="px-4 pt-4 sm:px-0 sm:pt-0">
-        <Link
-          to="/"
-          className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-stone-600 no-underline [-webkit-tap-highlight-color:transparent] active:opacity-70 sm:hover:text-stone-900"
-        >
-          <span aria-hidden className="text-base leading-none">
-            ←
-          </span>
-          Shop
-        </Link>
-      </div>
+    <main className="mx-auto w-full max-w-6xl pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 sm:px-6 sm:py-8">
+      <Link
+        to="/"
+        className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-stone-600 no-underline [-webkit-tap-highlight-color:transparent] active:opacity-70 sm:hover:text-stone-900"
+      >
+        <span aria-hidden className="text-base leading-none">
+          ←
+        </span>
+        Shop
+      </Link>
 
-      <div className="mt-4 sm:mt-8 sm:grid sm:grid-cols-2 sm:items-start sm:gap-10 lg:gap-14">
-        <div className="-mx-4 overflow-hidden bg-stone-100 sm:mx-0 sm:rounded-2xl sm:border sm:border-stone-200/80 sm:shadow-sm">
-          <div className="aspect-[2/3] max-h-[min(70svh,720px)] w-full sm:aspect-[3/4] sm:max-h-[560px] lg:max-h-[640px]">
+      <div className="mt-6 sm:mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 lg:gap-10">
+        {/* Product Image */}
+        <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-gradient-to-b from-stone-50 to-stone-100/50 shadow-sm ring-1 ring-black/[0.03]">
+          <div className="aspect-[2/3] w-full max-h-[400px] overflow-hidden sm:aspect-[3/4] sm:max-h-[450px]">
             {product.images?.[0] ? (
               <img
                 src={product.images[0]}
@@ -135,80 +136,91 @@ export default function ProductDetail() {
                 decoding="async"
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-stone-500">
-                No image
+              <div className="flex h-full items-center justify-center text-stone-400">
+                <span className="text-sm">No image available</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="mt-6 px-4 sm:mt-0 sm:px-0">
-          {cat?.slug ? (
-            <p className="text-xs font-medium uppercase tracking-wider text-stone-500 sm:text-[13px]">
-              <Link
-                to={`/?category=${encodeURIComponent(cat.slug)}`}
-                className="text-stone-600 no-underline [-webkit-tap-highlight-color:transparent] active:underline sm:hover:underline"
-              >
-                {cat.name}
-              </Link>
+        {/* Product Info */}
+        <div className="flex flex-col gap-6">
+          {/* Category & Title Section */}
+          <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm ring-1 ring-black/[0.03]">
+            {cat?.slug ? (
+              <p className="text-xs font-medium uppercase tracking-wider text-stone-500 sm:text-[13px]">
+                <Link
+                  to={`/?category=${encodeURIComponent(cat.slug)}`}
+                  className="text-stone-600 no-underline [-webkit-tap-highlight-color:transparent] active:underline sm:hover:underline"
+                >
+                  {cat.name}
+                </Link>
+              </p>
+            ) : null}
+            <h1 className="mt-2 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl lg:text-3xl">
+              {product.name}
+            </h1>
+            <p className="mt-3 text-2xl font-semibold tabular-nums text-stone-900">
+              ₹{price.toLocaleString('en-IN')}
             </p>
-          ) : null}
-          <h1 className="mt-2 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl lg:text-3xl">
-            {product.name}
-          </h1>
-          <p className="mt-3 text-xl font-semibold tabular-nums text-stone-900 sm:text-2xl">
-            ₹{price.toLocaleString('en-IN')}
-          </p>
-          {product.description ? (
-            <p className="mt-4 text-sm leading-relaxed text-stone-600 sm:text-[15px]">
-              {product.description}
-            </p>
-          ) : null}
-          <p className="mt-4 text-sm text-stone-500">
-            In stock:{' '}
-            <span className="font-medium text-stone-700">
-              {typeof product.stock === 'number' ? product.stock : '—'}
-            </span>
-          </p>
+          </div>
 
-          <div className="mt-6 space-y-3 sm:mt-8">
+          {/* Description Section */}
+          {product.description ? (
+            <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm ring-1 ring-black/[0.03]">
+              <p className="text-[13px] font-medium text-stone-700 uppercase tracking-wide">
+                Description
+              </p>
+              <p className="mt-2.5 text-sm leading-relaxed text-stone-600">
+                {product.description}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Actions Section */}
+          <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm ring-1 ring-black/[0.03]">
             {canBuy ? (
-              <div className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 p-0.5">
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-full text-lg text-stone-800 touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40"
-                  disabled={qty <= 1}
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  aria-label="Decrease quantity"
-                >
-                  −
-                </button>
-                <span className="min-w-[2.5rem] text-center text-sm font-semibold tabular-nums">
-                  {qty}
-                </span>
-                <button
-                  type="button"
-                  className="flex h-11 w-11 items-center justify-center rounded-full text-lg text-stone-800 touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40"
-                  disabled={qty >= maxQty}
-                  onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
-                  aria-label="Increase quantity"
-                >
-                  +
-                </button>
+              <div>
+                <p className="text-xs font-medium text-stone-600 uppercase tracking-wide mb-3">
+                  Select quantity
+                </p>
+                <div className="mb-5 inline-flex items-center rounded-full border border-stone-200 bg-stone-50 p-1">
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-lg font-semibold text-stone-700 touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40 transition"
+                    disabled={qty <= 1}
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[2.5rem] text-center text-sm font-semibold tabular-nums text-stone-900">
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-lg font-semibold text-stone-700 touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40 transition"
+                    disabled={qty >= maxQty}
+                    onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="space-y-2.5">
               <button
                 type="button"
                 disabled={!canBuy}
                 onClick={addToCart}
-                className="w-full min-h-[52px] touch-manipulation rounded-xl bg-stone-900 px-4 py-3.5 text-sm font-semibold text-white [-webkit-tap-highlight-color:transparent] active:opacity-90 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 sm:w-auto sm:min-w-[220px] sm:py-3"
+                className="w-full min-h-[52px] touch-manipulation rounded-xl bg-stone-900 px-4 py-3 text-sm font-semibold text-white [-webkit-tap-highlight-color:transparent] active:opacity-90 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 transition"
               >
                 {canBuy ? 'Add to cart' : 'Out of stock'}
               </button>
               <Link
                 to="/cart"
-                className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 no-underline [-webkit-tap-highlight-color:transparent] active:bg-stone-50 sm:w-auto sm:min-w-[140px]"
+                className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 no-underline [-webkit-tap-highlight-color:transparent] active:bg-stone-50 sm:hover:border-stone-300 transition"
               >
                 View cart
               </Link>

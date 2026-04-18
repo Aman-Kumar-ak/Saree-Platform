@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { getConfig } from "../config/env.js";
 import { signUserToken } from "../services/authJwt.js";
 import { upsertUserFromFirebase } from "../services/upsertUserFromFirebase.js";
+import { User } from "../models/User.js";
 
 export const authRouter = Router();
 
@@ -41,7 +42,8 @@ authRouter.post("/firebase", async (req, res, next) => {
       return;
     }
 
-    const user = await upsertUserFromFirebase(decoded, { name });
+    // For login (not signup), require user to exist in database
+    const user = await upsertUserFromFirebase(decoded, { name, loginOnly: !signup });
 
     const token = signUserToken(user);
     res.json({
@@ -56,6 +58,10 @@ authRouter.post("/firebase", async (req, res, next) => {
   } catch (err) {
     if (err.code === "NO_PHONE") {
       res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err.code === "USER_NOT_FOUND") {
+      res.status(404).json({ error: "No user found" });
       return;
     }
     next(err);
@@ -74,13 +80,29 @@ authRouter.get("/me", requireAuth, (req, res) => {
   });
 });
 
-/** Optional: validate phone format before sending OTP (client-side does too). */
-authRouter.post("/validate-phone", (req, res) => {
-  const raw = req.body?.phone;
-  const n = normalizeIndiaPhone10(raw);
-  if (!n) {
-    res.status(400).json({ ok: false, error: "Invalid phone number" });
-    return;
+/** Validate phone format and check if user exists for login */
+authRouter.post("/validate-phone", async (req, res) => {
+  try {
+    const raw = req.body?.phone;
+    const mode = req.body?.mode || "login"; // "login" or "signup"
+    
+    const n = normalizeIndiaPhone10(raw);
+    if (!n) {
+      res.status(400).json({ ok: false, error: "Invalid phone number" });
+      return;
+    }
+    
+    // For login, check if user exists in database
+    if (mode === "login") {
+      const user = await User.findOne({ phone: n }).exec();
+      if (!user) {
+        res.status(404).json({ ok: false, error: "No user found" });
+        return;
+      }
+    }
+    
+    res.json({ ok: true, phone: n });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: "Server error" });
   }
-  res.json({ ok: true, phone: n });
 });

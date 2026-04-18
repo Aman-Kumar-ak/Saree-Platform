@@ -39,6 +39,12 @@ const statusEntrySchema = new mongoose.Schema(
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, required: true, unique: true, index: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     items: { type: [orderItemSchema], required: true },
     subtotal: { type: Number, required: true, min: 0 },
     shipping: { type: Number, required: true, min: 0 },
@@ -66,5 +72,6 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ createdAt: -1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
 
 export const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);

@@ -1,9 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
 export default function Cart() {
   const { lines, itemCount, setQuantity, removeLine } = useCart()
+  const { addToast } = useToast()
 
   useEffect(() => {
     document.title = 'Cart · Shop'
@@ -77,12 +79,15 @@ export default function Cart() {
                         type="button"
                         className="flex h-10 w-10 items-center justify-center rounded-full text-lg text-stone-700 touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200"
                         onClick={() => {
-                          if (line.quantity <= 1) removeLine(line.productId)
-                          else
+                          if (line.quantity <= 1) {
+                            addToast(`${line.name} removed from cart`, 'info', 2000)
+                            removeLine(line.productId)
+                          } else {
                             setQuantity(
                               line.productId,
                               line.quantity - 1
                             )
+                          }
                         }}
                         aria-label="Decrease quantity"
                       >
@@ -108,7 +113,10 @@ export default function Cart() {
                     <button
                       type="button"
                       className="text-sm font-medium text-red-700 touch-manipulation [-webkit-tap-highlight-color:transparent] active:underline"
-                      onClick={() => removeLine(line.productId)}
+                      onClick={() => {
+                        addToast(`${line.name} removed from cart`, 'info', 2000)
+                        removeLine(line.productId)
+                      }}
                     >
                       Remove
                     </button>

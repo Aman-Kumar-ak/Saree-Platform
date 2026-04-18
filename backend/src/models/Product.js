@@ -4,6 +4,7 @@ const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    tagId: { type: String, required: true, unique: true, trim: true },
     description: { type: String, trim: true, default: "" },
     price: { type: Number, required: true, min: 0 },
     category: {
@@ -13,6 +14,10 @@ const productSchema = new mongoose.Schema(
     },
     images: [{ type: String, trim: true }],
     stock: { type: Number, required: true, min: 0, default: 0 },
+    color: { type: String, trim: true, default: "" },
+    material: { type: String, trim: true, default: "" },
+    size: { type: String, trim: true, default: "" },
+    sku: { type: String, trim: true, default: "" },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
