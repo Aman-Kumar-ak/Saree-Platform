@@ -3,6 +3,16 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useAddresses } from '../context/AddressContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import LoginPromptModal from '../components/LoginPromptModal.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import {
+  ADDRESS_FIELD_HELPERS,
+  INDIA_STATE_OPTIONS,
+  createEmptyAddressForm,
+  normalizeAddressForm,
+  sanitizeAddressField,
+  validateAddressForm,
+} from '../lib/addressForm.js'
+import { CUSTOMER_RETRY_MESSAGE } from '../lib/errorMessages.js'
 
 export default function Addresses() {
   const { user, ready } = useAuth()
@@ -11,17 +21,9 @@ export default function Addresses() {
   const { addToast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({
-    fullName: '',
-    phone: '',
-    line1: '',
-    line2: '',
-    city: '',
-    state: '',
-    pincode: '',
-    isDefault: false,
-  })
+  const [form, setForm] = useState(createEmptyAddressForm)
   const [submitting, setSubmitting] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   useEffect(() => {
     document.title = 'My Addresses · Shop'
@@ -46,65 +48,79 @@ export default function Addresses() {
   }
 
   const resetForm = () => {
-    setForm({
-      fullName: '',
-      phone: '',
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      pincode: '',
-      isDefault: false,
-    })
+    setForm(createEmptyAddressForm())
     setEditingId(null)
   }
 
   const handleEdit = (address) => {
     setForm({
+      ...createEmptyAddressForm(),
       fullName: address.fullName,
-      phone: address.phone,
+      phone: String(address.phone ?? '').replace(/\D/g, '').slice(0, 10),
       line1: address.line1,
       line2: address.line2 || '',
       city: address.city,
-      state: address.state,
-      pincode: address.pincode,
+      state: INDIA_STATE_OPTIONS.includes(address.state) ? address.state : '',
+      pincode: String(address.pincode ?? '').replace(/\D/g, '').slice(0, 6),
       isDefault: address.isDefault,
     })
     setEditingId(address._id)
     setShowForm(true)
   }
 
+  const updateField = (field, value) => {
+    const nextValue = sanitizeAddressField(field, value)
+    const limits = {
+      phone: 10,
+      pincode: 6,
+    }
+
+    setForm((current) => ({
+      ...current,
+      [field]: limits[field]
+        ? String(nextValue).slice(0, limits[field])
+        : nextValue,
+    }))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const nextForm = normalizeAddressForm(form)
+    const validationError = validateAddressForm(nextForm)
+
+    if (validationError) {
+      addToast(validationError, 'error', 3000)
+      return
+    }
+
     setSubmitting(true)
 
     try {
       if (editingId) {
-        await updateAddress(editingId, form)
+        await updateAddress(editingId, nextForm)
         addToast('Address updated successfully!', 'success', 2500)
       } else {
-        await addAddress(form)
+        await addAddress(nextForm)
         addToast('Address added successfully!', 'success', 2500)
       }
       resetForm()
       setShowForm(false)
-    } catch (error) {
-      addToast(error.message || 'Something went wrong', 'error', 3000)
+    } catch {
+      addToast(CUSTOMER_RETRY_MESSAGE, 'error', 3000)
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this address?')) {
-      return
-    }
-
+  const handleDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await deleteAddress(id)
+      await deleteAddress(deleteTarget._id)
       addToast('Address deleted successfully!', 'success', 2500)
-    } catch (error) {
-      addToast(error.message || 'Failed to delete address', 'error', 3000)
+    } catch {
+      addToast(CUSTOMER_RETRY_MESSAGE, 'error', 3000)
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -184,7 +200,7 @@ export default function Addresses() {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(address._id)}
+                      onClick={() => setDeleteTarget(address)}
                       className="inline-flex min-h-[36px] items-center justify-center rounded px-3 text-sm font-medium text-red-600 hover:bg-red-50 transition"
                     >
                       Delete
@@ -233,12 +249,15 @@ export default function Addresses() {
               <input
                 type="text"
                 required
+                maxLength="120"
                 value={form.fullName}
-                onChange={(e) =>
-                  setForm({ ...form, fullName: e.target.value })
-                }
+                onChange={(e) => updateField('fullName', e.target.value)}
+                placeholder="Enter full name"
                 className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
               />
+              <p className="mt-2 text-xs text-stone-500">
+                {ADDRESS_FIELD_HELPERS.fullName}
+              </p>
             </div>
 
             <div>
@@ -248,16 +267,18 @@ export default function Addresses() {
               <input
                 type="tel"
                 required
-                maxLength="10"
+                inputMode="numeric"
+                maxLength={10}
+                minLength={10}
+                pattern="[6-9][0-9]{9}"
                 value={form.phone}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    phone: e.target.value.replace(/\D/g, '').slice(0, 10),
-                  })
-                }
+                onChange={(e) => updateField('phone', e.target.value)}
+                placeholder="10-digit mobile number"
                 className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
               />
+              <p className="mt-2 text-xs text-stone-500">
+                {ADDRESS_FIELD_HELPERS.phone}
+              </p>
             </div>
 
             <div>
@@ -267,11 +288,15 @@ export default function Addresses() {
               <input
                 type="text"
                 required
+                maxLength="200"
                 value={form.line1}
-                onChange={(e) => setForm({ ...form, line1: e.target.value })}
+                onChange={(e) => updateField('line1', e.target.value)}
                 placeholder="House no., street, etc."
                 className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
               />
+              <p className="mt-2 text-xs text-stone-500">
+                {ADDRESS_FIELD_HELPERS.line1}
+              </p>
             </div>
 
             <div>
@@ -281,7 +306,8 @@ export default function Addresses() {
               <input
                 type="text"
                 value={form.line2}
-                onChange={(e) => setForm({ ...form, line2: e.target.value })}
+                maxLength="200"
+                onChange={(e) => updateField('line2', e.target.value)}
                 placeholder="Apartment, suite, etc."
                 className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
               />
@@ -295,22 +321,36 @@ export default function Addresses() {
                 <input
                   type="text"
                   required
+                  maxLength="80"
                   value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  onChange={(e) => updateField('city', e.target.value)}
+                  placeholder="Enter city"
                   className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
                 />
+                <p className="mt-2 text-xs text-stone-500">
+                  {ADDRESS_FIELD_HELPERS.city}
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-stone-600 mb-2">
                   State *
                 </label>
-                <input
-                  type="text"
+                <select
                   required
                   value={form.state}
-                  onChange={(e) => setForm({ ...form, state: e.target.value })}
+                  onChange={(e) => updateField('state', e.target.value)}
                   className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
-                />
+                >
+                  <option value="">Select a state</option>
+                  {INDIA_STATE_OPTIONS.map((stateName) => (
+                    <option key={stateName} value={stateName}>
+                      {stateName}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-stone-500">
+                  {ADDRESS_FIELD_HELPERS.state}
+                </p>
               </div>
             </div>
 
@@ -321,16 +361,18 @@ export default function Addresses() {
               <input
                 type="text"
                 required
-                maxLength="6"
+                inputMode="numeric"
+                maxLength={6}
+                minLength={6}
+                pattern="[0-9]{6}"
                 value={form.pincode}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    pincode: e.target.value.replace(/\D/g, '').slice(0, 6),
-                  })
-                }
+                onChange={(e) => updateField('pincode', e.target.value)}
+                placeholder="6-digit PIN code"
                 className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
               />
+              <p className="mt-2 text-xs text-stone-500">
+                {ADDRESS_FIELD_HELPERS.pincode}
+              </p>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
@@ -368,6 +410,18 @@ export default function Addresses() {
           </form>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete address?"
+        message={
+          deleteTarget
+            ? `Delete the address for ${deleteTarget.fullName}? This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </main>
   )
 }

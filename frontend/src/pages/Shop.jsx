@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ProductCard } from '../components/ProductCard.jsx'
 import { apiUrl } from '../config/api.js'
+import { CUSTOMER_RETRY_MESSAGE } from '../lib/errorMessages.js'
 
 function CatalogSkeleton() {
   return (
@@ -52,8 +53,8 @@ export default function Shop() {
         if (cancelled) return
         setCategories(catRes.categories ?? [])
         setProducts(prodRes.products ?? [])
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Could not load catalog')
+      } catch {
+        if (!cancelled) setError(CUSTOMER_RETRY_MESSAGE)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -113,24 +114,17 @@ export default function Shop() {
             )
           })}
         </div>
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#fafaf9] to-transparent sm:hidden"
-          aria-hidden
-        />
       </div>
 
       {loading && <CatalogSkeleton />}
       {error && (
         <div className="mt-6 rounded-2xl border border-amber-200/90 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950 sm:mt-8">
-          {error}. Ensure the API is running, MongoDB is connected, and you have
-          run <code className="rounded-md bg-amber-100/90 px-1.5 py-0.5 font-mono text-[13px]">npm run seed</code> in
-          the backend once.
+          {error}
         </div>
       )}
       {!loading && !error && products.length === 0 && (
         <p className="mt-8 text-sm text-stone-600">
-          No products yet. From the backend folder run{' '}
-          <code className="rounded-md bg-stone-200/90 px-1.5 py-0.5 font-mono text-[13px]">npm run seed</code>.
+          No products available right now.
         </p>
       )}
       {!loading && !error && products.length > 0 && (

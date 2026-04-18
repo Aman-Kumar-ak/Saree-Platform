@@ -3,58 +3,9 @@ import mongoose from "mongoose";
 import { Order } from "../models/Order.js";
 import { placeCodOrder } from "../services/placeCodOrder.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { validateIndianAddress } from "../lib/addressValidation.js";
 
 export const ordersRouter = Router();
-
-const IN_PIN = /^\d{6}$/;
-const IN_PHONE = /^[6-9]\d{9}$/;
-
-function validateAddress(body) {
-  const a = body?.address;
-  if (!a || typeof a !== "object") return { ok: false, message: "address is required" };
-  const fullName = String(a.fullName ?? "").trim();
-  const phone = String(a.phone ?? "").replace(/\s/g, "");
-  const line1 = String(a.line1 ?? "").trim();
-  const line2 = String(a.line2 ?? "").trim();
-  const city = String(a.city ?? "").trim();
-  const state = String(a.state ?? "").trim();
-  const pincode = String(a.pincode ?? "").trim();
-
-  if (!fullName || fullName.length > 120) {
-    return { ok: false, message: "Invalid full name" };
-  }
-  if (!IN_PHONE.test(phone)) {
-    return { ok: false, message: "Phone must be 10 digits (India)" };
-  }
-  if (!line1 || line1.length > 200) {
-    return { ok: false, message: "Address line 1 is required" };
-  }
-  if (line2.length > 200) {
-    return { ok: false, message: "Address line 2 is too long" };
-  }
-  if (!city || city.length > 80) {
-    return { ok: false, message: "City is required" };
-  }
-  if (!state || state.length > 80) {
-    return { ok: false, message: "State is required" };
-  }
-  if (!IN_PIN.test(pincode)) {
-    return { ok: false, message: "PIN code must be 6 digits" };
-  }
-
-  return {
-    ok: true,
-    address: {
-      fullName,
-      phone,
-      line1,
-      line2,
-      city,
-      state,
-      pincode,
-    },
-  };
-}
 
 ordersRouter.post("/", requireAuth, async (req, res, next) => {
   try {
@@ -90,9 +41,9 @@ ordersRouter.post("/", requireAuth, async (req, res, next) => {
       lines.push({ productId: String(productId), quantity: Math.floor(quantity) });
     }
 
-    const addr = validateAddress(req.body);
+    const addr = validateIndianAddress(req.body?.address);
     if (!addr.ok) {
-      res.status(400).json({ error: addr.message });
+      res.status(400).json({ error: addr.error });
       return;
     }
 

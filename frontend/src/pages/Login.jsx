@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth'
+import MobileBackButton from '../components/MobileBackButton.jsx'
 import { apiUrl } from '../config/api.js'
-import { getFirebaseAuth, isFirebaseClientConfigured } from '../config/firebaseClient.js'
+import {
+  getFirebaseAuth,
+  isFirebaseClientConfigured,
+} from '../config/firebaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const IN_10 = /^[6-9]\d{9}$/
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export default function Login() {
   const { setSession } = useAuth()
@@ -76,7 +81,6 @@ export default function Login() {
     }
     setBusy(true)
     try {
-      // First, validate phone number with backend
       const validateRes = await fetch(apiUrl('/api/auth/validate-phone'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,14 +90,13 @@ export default function Login() {
         }),
       })
       const validateData = await validateRes.json().catch(() => ({}))
-      
+
       if (!validateRes.ok) {
         setError(validateData.error || 'Phone validation failed')
         setBusy(false)
         return
       }
 
-      // Now request OTP from Firebase
       const auth = getFirebaseAuth()
       if (!verifierRef.current) {
         verifierRef.current = new RecaptchaVerifier(
@@ -103,27 +106,26 @@ export default function Login() {
         )
       }
       const e164 = `+91${digits}`
-      const conf = await signInWithPhoneNumber(
-        auth,
-        e164,
-        verifierRef.current
-      )
+      const conf = await signInWithPhoneNumber(auth, e164, verifierRef.current)
       setConfirmation(conf)
       setStep('otp')
     } catch (e) {
-      // Clear verifier on error so it can be recreated on retry
       try {
         verifierRef.current?.clear?.()
       } catch {
         /* ignore */
       }
       verifierRef.current = null
-      
-      // Handle reCAPTCHA dismissal/cancellation
-      if (e?.code === 'auth/cancelled-popup-request' || e?.code === 'auth/popup-closed-by-user') {
+
+      if (
+        e?.code === 'auth/cancelled-popup-request' ||
+        e?.code === 'auth/popup-closed-by-user'
+      ) {
         setError('reCAPTCHA was cancelled. Please try again.')
       } else {
-        setError(e?.message || 'Could not send OTP. Check Firebase Auth settings.')
+        setError(
+          e?.message || 'Could not send OTP. Check Firebase Auth settings.'
+        )
       }
     } finally {
       setBusy(false)
@@ -144,17 +146,32 @@ export default function Login() {
     setBusy(true)
     try {
       const cred = await confirmation.confirm(code)
-      const idToken = await cred.user.getIdToken()
-      const r = await fetch(apiUrl('/api/auth/firebase'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idToken,
-          name: name.trim(),
-          signup: mode === 'signup',
-        }),
-      })
-      const data = await r.json().catch(() => ({}))
+      const requestBody = {
+        name: name.trim(),
+        signup: mode === 'signup',
+      }
+
+      async function completeFirebaseLogin(forceRefresh = false) {
+        const idToken = await cred.user.getIdToken(forceRefresh)
+        const response = await fetch(apiUrl('/api/auth/firebase'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idToken,
+            ...requestBody,
+          }),
+        })
+        const payload = await response.json().catch(() => ({}))
+        return { response, payload }
+      }
+
+      let { response: r, payload: data } = await completeFirebaseLogin(true)
+
+      if (!r.ok && r.status >= 500) {
+        await delay(450)
+        ;({ response: r, payload: data } = await completeFirebaseLogin(true))
+      }
+
       if (!r.ok) {
         const hint =
           data.message ||
@@ -164,7 +181,11 @@ export default function Login() {
         throw new Error(hint || data.error || 'Could not complete login')
       }
       setSession(data.token, data.user)
-      navigate(from, { replace: true })
+      if (data.user?.role === 'admin') {
+        navigate('/admin', { replace: true })
+      } else {
+        navigate(from, { replace: true })
+      }
     } catch (e) {
       setError(e?.message || 'Invalid OTP or login failed.')
     } finally {
@@ -175,12 +196,7 @@ export default function Login() {
   return (
     <div className="min-h-svh bg-[#fafaf9] px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
       <div className="mx-auto w-full max-w-md">
-        <Link
-          to="/"
-          className="text-sm font-medium text-stone-600 no-underline [-webkit-tap-highlight-color:transparent] active:opacity-70"
-        >
-          ← Home
-        </Link>
+        <MobileBackButton to="/" label="Back to home" />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight text-stone-900">
           Account
         </h1>

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {
   createContext,
   useCallback,
@@ -7,6 +9,7 @@ import {
   useState,
 } from 'react'
 import { useAuth } from './AuthContext.jsx'
+import { CUSTOMER_RETRY_MESSAGE } from '../lib/errorMessages.js'
 
 const AddressContext = createContext(null)
 
@@ -19,7 +22,6 @@ export function AddressProvider({ children }) {
   // Fetch addresses when user logs in
   useEffect(() => {
     if (!user) {
-      setAddresses([])
       return
     }
 
@@ -29,14 +31,14 @@ export function AddressProvider({ children }) {
       setError(null)
       try {
         const r = await authFetch('/api/addresses')
-        if (!r.ok) throw new Error('Failed to fetch addresses')
+        if (!r.ok) throw new Error(CUSTOMER_RETRY_MESSAGE)
         const data = await r.json()
         if (!cancelled) {
           setAddresses(data.addresses || [])
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message)
+          setError(CUSTOMER_RETRY_MESSAGE)
           console.error('Error fetching addresses:', err)
         }
       } finally {
@@ -58,14 +60,13 @@ export function AddressProvider({ children }) {
           body: JSON.stringify(addressData),
         })
         if (!r.ok) {
-          const err = await r.json()
-          throw new Error(err.error || 'Failed to create address')
+          throw new Error(CUSTOMER_RETRY_MESSAGE)
         }
         const data = await r.json()
         setAddresses((prev) => [data.address, ...prev])
         return data.address
       } catch (err) {
-        setError(err.message)
+        setError(CUSTOMER_RETRY_MESSAGE)
         throw err
       }
     },
@@ -80,8 +81,7 @@ export function AddressProvider({ children }) {
           body: JSON.stringify(addressData),
         })
         if (!r.ok) {
-          const err = await r.json()
-          throw new Error(err.error || 'Failed to update address')
+          throw new Error(CUSTOMER_RETRY_MESSAGE)
         }
         const data = await r.json()
         setAddresses((prev) =>
@@ -89,7 +89,7 @@ export function AddressProvider({ children }) {
         )
         return data.address
       } catch (err) {
-        setError(err.message)
+        setError(CUSTOMER_RETRY_MESSAGE)
         throw err
       }
     },
@@ -103,12 +103,11 @@ export function AddressProvider({ children }) {
           method: 'DELETE',
         })
         if (!r.ok) {
-          const err = await r.json()
-          throw new Error(err.error || 'Failed to delete address')
+          throw new Error(CUSTOMER_RETRY_MESSAGE)
         }
         setAddresses((prev) => prev.filter((a) => a._id !== addressId))
       } catch (err) {
-        setError(err.message)
+        setError(CUSTOMER_RETRY_MESSAGE)
         throw err
       }
     },
@@ -117,14 +116,14 @@ export function AddressProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      addresses,
-      loading,
+      addresses: user ? addresses : [],
+      loading: user ? loading : false,
       error,
       addAddress,
       updateAddress,
       deleteAddress,
     }),
-    [addresses, loading, error, addAddress, updateAddress, deleteAddress]
+    [user, addresses, loading, error, addAddress, updateAddress, deleteAddress]
   )
 
   return (

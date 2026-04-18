@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import ConfirmDialog from './ConfirmDialog.jsx'
 
-export function ProfileMenu() {
+export function ProfileMenu({
+  triggerClassName = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-stone-100 text-stone-700 [-webkit-tap-highlight-color:transparent] active:scale-[0.98] hover:bg-stone-200 transition',
+  iconClassName = 'w-5 h-5',
+  panelClassName = 'absolute bottom-full left-1/2 mb-3 w-56 -translate-x-1/2 overflow-hidden rounded-3xl border border-stone-700/60 bg-stone-950/95 shadow-2xl shadow-black/20 backdrop-blur-xl z-50',
+}) {
   const { user, logout } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const menuRef = useRef(null)
 
   // Close menu when clicking outside
@@ -24,6 +30,7 @@ export function ProfileMenu() {
   if (!user) return null
 
   const handleLogout = () => {
+    setShowLogoutConfirm(false)
     setIsOpen(false)
     logout()
   }
@@ -33,7 +40,7 @@ export function ProfileMenu() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-stone-100 text-stone-700 [-webkit-tap-highlight-color:transparent] active:scale-[0.98] hover:bg-stone-200 transition"
+        className={triggerClassName}
         aria-label="Profile menu"
         aria-expanded={isOpen}
       >
@@ -46,7 +53,7 @@ export function ProfileMenu() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="w-5 h-5"
+          className={iconClassName}
         >
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
@@ -55,23 +62,20 @@ export function ProfileMenu() {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white border border-stone-200 overflow-hidden z-50">
-          {/* User Name Header */}
-          <div className="px-4 py-3 border-b border-stone-100 bg-stone-50">
-            <p className="text-sm font-semibold text-stone-900">{user.name}</p>
-            {user.email && (
-              <p className="text-xs text-stone-500 truncate">{user.email}</p>
-            )}
+        <div className={panelClassName}>
+          <div className="border-b border-white/10 px-4 py-3">
+            <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+            {user.email ? (
+              <p className="truncate text-xs text-stone-300">{user.email}</p>
+            ) : null}
           </div>
 
-          {/* Menu Items */}
-          <div className="py-2">
+          <div className="p-2">
             <Link
               to="/orders"
               onClick={() => setIsOpen(false)}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition [-webkit-tap-highlight-color:transparent] active:bg-stone-100 no-underline"
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm text-stone-200 no-underline transition [-webkit-tap-highlight-color:transparent] active:bg-white/10 hover:bg-white/10 hover:text-white"
             >
-              {/* Orders Icon */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -80,7 +84,7 @@ export function ProfileMenu() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-4 h-4"
+                className="h-4 w-4 shrink-0"
               >
                 <circle cx="9" cy="21" r="1" />
                 <circle cx="20" cy="21" r="1" />
@@ -91,9 +95,8 @@ export function ProfileMenu() {
             <Link
               to="/address"
               onClick={() => setIsOpen(false)}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-stone-700 hover:bg-stone-50 transition [-webkit-tap-highlight-color:transparent] active:bg-stone-100 no-underline"
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm text-stone-200 no-underline transition [-webkit-tap-highlight-color:transparent] active:bg-white/10 hover:bg-white/10 hover:text-white"
             >
-              {/* Address Icon */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -102,7 +105,7 @@ export function ProfileMenu() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-4 h-4"
+                className="h-4 w-4 shrink-0"
               >
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                 <circle cx="12" cy="10" r="3" />
@@ -111,35 +114,42 @@ export function ProfileMenu() {
             </Link>
           </div>
 
-          {/* Logout Button */}
-          <div className="border-t border-stone-100 py-2">
+          <div className="border-t border-white/10 p-2">
             <button
               type="button"
-              onClick={handleLogout}
-              className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition [-webkit-tap-highlight-color:transparent] active:bg-red-100 font-medium"
+              onClick={() => {
+                setIsOpen(false)
+                setShowLogoutConfirm(true)
+              }}
+              className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-medium text-rose-300 transition [-webkit-tap-highlight-color:transparent] active:bg-white/10 hover:bg-white/10 hover:text-rose-200"
             >
-              {/* Logout Icon */}
-              <span className="flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-4 h-4"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                Logout
-              </span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4 shrink-0"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Logout
             </button>
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Log out?"
+        message="You’ll be signed out of your account on this device."
+        confirmLabel="Log out"
+        onConfirm={handleLogout}
+        onClose={() => setShowLogoutConfirm(false)}
+      />
     </div>
   )
 }

@@ -23,13 +23,3 @@ export function firebasePhoneTo10(phoneNumber) {
   return null;
 }
 
-/** Comma-separated list from env → Set of 10-digit phones. */
-export function adminPhoneSetFromEnv(raw) {
-  if (!raw) return new Set();
-  const out = new Set();
-  for (const part of String(raw).split(",")) {
-    const n = normalizeIndiaPhone10(part.trim());
-    if (n) out.add(n);
-  }
-  return out;
-}

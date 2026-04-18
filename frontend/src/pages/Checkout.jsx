@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { apiUrl } from '../config/api.js'
+import { useNavigate } from 'react-router-dom'
+import MobileBackButton from '../components/MobileBackButton.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
@@ -106,20 +106,16 @@ export default function Checkout() {
 
   if (itemCount === 0) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 pt-12 sm:px-6">
+        <MobileBackButton to="/" label="Back to shop" />
         <p className="text-sm text-stone-600">Your cart is empty.</p>
-        <Link
-          to="/"
-          className="mt-4 inline-flex min-h-[44px] items-center text-sm font-medium text-stone-800 underline"
-        >
-          Back to shop
-        </Link>
       </main>
     )
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg px-4 py-6 sm:px-6 sm:py-8 lg:max-w-6xl">
+    <main className="mx-auto w-full max-w-lg px-4 py-6 pt-12 sm:px-6 sm:py-8 lg:max-w-6xl">
+      <MobileBackButton to="/cart" label="Back to cart" />
       <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
         Checkout
       </h1>

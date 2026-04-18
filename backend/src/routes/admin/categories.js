@@ -6,10 +6,14 @@ import { slugify } from "../../lib/slugify.js";
 
 export const adminCategoriesRouter = Router();
 
-async function uniqueCategorySlug(base) {
+async function uniqueCategorySlug(base, excludeId = null) {
   let s = slugify(base);
   let n = 0;
-  while (await Category.exists({ slug: s }).exec()) {
+  while (
+    await Category.exists(
+      excludeId ? { slug: s, _id: { $ne: excludeId } } : { slug: s }
+    ).exec()
+  ) {
     n += 1;
     s = `${slugify(base)}-${n}`;
   }
@@ -18,8 +22,22 @@ async function uniqueCategorySlug(base) {
 
 adminCategoriesRouter.get("/", async (_req, res, next) => {
   try {
-    const items = await Category.find().sort({ name: 1 }).lean().exec();
-    res.json({ categories: items });
+    const [items, counts] = await Promise.all([
+      Category.find().sort({ name: 1 }).lean().exec(),
+      Product.aggregate([
+        { $match: { isActive: true } },
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+      ]).exec(),
+    ]);
+    const productCounts = new Map(
+      counts.map((item) => [String(item._id), item.count])
+    );
+    res.json({
+      categories: items.map((item) => ({
+        ...item,
+        productCount: productCounts.get(String(item._id)) || 0,
+      })),
+    });
   } catch (err) {
     next(err);
   }
@@ -63,7 +81,12 @@ adminCategoriesRouter.put("/:id", async (req, res, next) => {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    if (req.body.name != null) doc.name = String(req.body.name).trim();
+    let nameChanged = false;
+    if (req.body.name != null) {
+      const nextName = String(req.body.name).trim();
+      nameChanged = nextName && nextName !== doc.name;
+      doc.name = nextName;
+    }
     if (req.body.description != null) {
       doc.description = String(req.body.description).trim();
     }
@@ -76,6 +99,8 @@ adminCategoriesRouter.put("/:id", async (req, res, next) => {
         }
         doc.slug = s;
       }
+    } else if (nameChanged) {
+      doc.slug = await uniqueCategorySlug(doc.name, doc._id);
     }
     if (req.body.isActive != null) doc.isActive = Boolean(req.body.isActive);
     await doc.save();

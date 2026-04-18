@@ -2,6 +2,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { validateIndianAddress } from "../lib/addressValidation.js";
 
 const router = Router();
 
@@ -32,28 +33,18 @@ router.post("/", requireAuth, async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { fullName, phone, line1, line2, city, state, pincode, isDefault } =
-      req.body;
-
-    // Validate required fields
-    if (!fullName || !phone || !line1 || !city || !state || !pincode) {
-      return res.status(400).json({ error: "Missing required fields" });
+    const validation = validateIndianAddress(req.body, { includeIsDefault: true });
+    if (!validation.ok) {
+      return res.status(400).json({ error: validation.error });
     }
 
     const newAddress = {
       _id: new mongoose.Types.ObjectId(),
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      line1: line1.trim(),
-      line2: (line2 || "").trim(),
-      city: city.trim(),
-      state: state.trim(),
-      pincode: pincode.trim(),
-      isDefault: Boolean(isDefault),
+      ...validation.address,
     };
 
     // If this is set as default, unset other defaults
-    if (isDefault) {
+    if (newAddress.isDefault) {
       // First unset other defaults
       await User.findByIdAndUpdate(
         req.authUser._id,
@@ -84,13 +75,10 @@ router.post("/", requireAuth, async (req, res) => {
 // Update an address
 router.put("/:id", requireAuth, async (req, res) => {
   try {
-    const { fullName, phone, line1, line2, city, state, pincode, isDefault } =
-      req.body;
     const addressId = req.params.id;
-
-    // Validate required fields
-    if (!fullName || !phone || !line1 || !city || !state || !pincode) {
-      return res.status(400).json({ error: "Missing required fields" });
+    const validation = validateIndianAddress(req.body, { includeIsDefault: true });
+    if (!validation.ok) {
+      return res.status(400).json({ error: validation.error });
     }
 
     if (!mongoose.Types.ObjectId.isValid(addressId)) {
@@ -111,7 +99,7 @@ router.put("/:id", requireAuth, async (req, res) => {
     }
 
     // If setting as default, unset others
-    if (isDefault) {
+    if (validation.address.isDefault) {
       user.addresses.forEach((addr) => {
         addr.isDefault = false;
       });
@@ -119,14 +107,7 @@ router.put("/:id", requireAuth, async (req, res) => {
 
     user.addresses[addressIndex] = {
       ...user.addresses[addressIndex],
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      line1: line1.trim(),
-      line2: (line2 || "").trim(),
-      city: city.trim(),
-      state: state.trim(),
-      pincode: pincode.trim(),
-      isDefault: Boolean(isDefault),
+      ...validation.address,
     };
 
     await user.save();

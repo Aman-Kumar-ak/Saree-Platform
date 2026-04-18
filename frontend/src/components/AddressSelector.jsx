@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react'
 import { useAddresses } from '../context/AddressContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import {
+  ADDRESS_FIELD_HELPERS,
+  INDIA_STATE_OPTIONS,
+  createEmptyAddressForm,
+  normalizeAddressForm,
+  sanitizeAddressField,
+  validateAddressForm,
+} from '../lib/addressForm.js'
 
 export function AddressSelector({ value, onChange }) {
   const { addresses } = useAddresses()
@@ -86,21 +94,36 @@ function AddressForm({ onClose, onAddressAdded }) {
   const { addAddress } = useAddresses()
   const { addToast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    fullName: '',
-    phone: '',
-    line1: '',
-    line2: '',
-    city: '',
-    state: '',
-    pincode: '',
-  })
+  const [form, setForm] = useState(createEmptyAddressForm)
+
+  const updateField = (field, value) => {
+    const nextValue = sanitizeAddressField(field, value)
+    const limits = {
+      phone: 10,
+      pincode: 6,
+    }
+
+    setForm((current) => ({
+      ...current,
+      [field]: limits[field]
+        ? String(nextValue).slice(0, limits[field])
+        : nextValue,
+    }))
+  }
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.()
+    const nextForm = normalizeAddressForm(form)
+    const validationError = validateAddressForm(nextForm)
+
+    if (validationError) {
+      addToast(validationError, 'error', 3000)
+      return
+    }
+
     setLoading(true)
     try {
-      const newAddress = await addAddress(form)
+      const newAddress = await addAddress(nextForm)
       addToast('Address added successfully!', 'success', 2500)
       onAddressAdded(newAddress)
     } catch (err) {
@@ -111,7 +134,10 @@ function AddressForm({ onClose, onAddressAdded }) {
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-stone-200 bg-white p-5 space-y-4"
+    >
       <h3 className="font-semibold text-stone-900">Add New Address</h3>
 
       <div>
@@ -121,12 +147,15 @@ function AddressForm({ onClose, onAddressAdded }) {
         <input
           type="text"
           required
+          maxLength="120"
           value={form.fullName}
-          onChange={(e) =>
-            setForm({ ...form, fullName: e.target.value })
-          }
+          onChange={(e) => updateField('fullName', e.target.value)}
+          placeholder="Enter full name"
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
+        <p className="mt-2 text-xs text-stone-500">
+          {ADDRESS_FIELD_HELPERS.fullName}
+        </p>
       </div>
 
       <div>
@@ -136,10 +165,18 @@ function AddressForm({ onClose, onAddressAdded }) {
         <input
           type="tel"
           required
+          inputMode="numeric"
+          maxLength={10}
+          minLength={10}
+          pattern="[6-9][0-9]{9}"
           value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          onChange={(e) => updateField('phone', e.target.value)}
+          placeholder="10-digit mobile number"
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
+        <p className="mt-2 text-xs text-stone-500">
+          {ADDRESS_FIELD_HELPERS.phone}
+        </p>
       </div>
 
       <div>
@@ -149,11 +186,15 @@ function AddressForm({ onClose, onAddressAdded }) {
         <input
           type="text"
           required
+          maxLength="200"
           value={form.line1}
-          onChange={(e) => setForm({ ...form, line1: e.target.value })}
+          onChange={(e) => updateField('line1', e.target.value)}
           placeholder="House no., street, etc."
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
+        <p className="mt-2 text-xs text-stone-500">
+          {ADDRESS_FIELD_HELPERS.line1}
+        </p>
       </div>
 
       <div>
@@ -163,7 +204,8 @@ function AddressForm({ onClose, onAddressAdded }) {
         <input
           type="text"
           value={form.line2}
-          onChange={(e) => setForm({ ...form, line2: e.target.value })}
+          maxLength="200"
+          onChange={(e) => updateField('line2', e.target.value)}
           placeholder="Apartment, suite, etc."
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
@@ -177,22 +219,36 @@ function AddressForm({ onClose, onAddressAdded }) {
           <input
             type="text"
             required
+            maxLength="80"
             value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
+            onChange={(e) => updateField('city', e.target.value)}
+            placeholder="Enter city"
             className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
           />
+          <p className="mt-2 text-xs text-stone-500">
+            {ADDRESS_FIELD_HELPERS.city}
+          </p>
         </div>
         <div>
           <label className="block text-xs font-medium text-stone-600 mb-2">
             State *
           </label>
-          <input
-            type="text"
+          <select
             required
             value={form.state}
-            onChange={(e) => setForm({ ...form, state: e.target.value })}
+            onChange={(e) => updateField('state', e.target.value)}
             className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
-          />
+          >
+            <option value="">Select a state</option>
+            {INDIA_STATE_OPTIONS.map((stateName) => (
+              <option key={stateName} value={stateName}>
+                {stateName}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-stone-500">
+            {ADDRESS_FIELD_HELPERS.state}
+          </p>
         </div>
       </div>
 
@@ -203,10 +259,18 @@ function AddressForm({ onClose, onAddressAdded }) {
         <input
           type="text"
           required
+          inputMode="numeric"
+          maxLength={6}
+          minLength={6}
+          pattern="[0-9]{6}"
           value={form.pincode}
-          onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+          onChange={(e) => updateField('pincode', e.target.value)}
+          placeholder="6-digit PIN code"
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
+        <p className="mt-2 text-xs text-stone-500">
+          {ADDRESS_FIELD_HELPERS.pincode}
+        </p>
       </div>
 
       <div className="flex gap-3 pt-2">
@@ -218,14 +282,13 @@ function AddressForm({ onClose, onAddressAdded }) {
           Cancel
         </button>
         <button
-          type="button"
-          onClick={handleSubmit}
+          type="submit"
           disabled={loading}
           className="flex-1 min-h-[44px] rounded-lg bg-stone-900 text-white font-medium text-sm disabled:opacity-50 transition"
         >
           {loading ? 'Saving...' : 'Save Address'}
         </button>
       </div>
-    </div>
+    </form>
   )
 }

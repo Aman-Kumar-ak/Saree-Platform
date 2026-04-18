@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
+import MobileBackButton from '../components/MobileBackButton.jsx'
 import { apiUrl } from '../config/api.js'
 
 export default function OrderConfirmation() {
@@ -65,14 +66,9 @@ export default function OrderConfirmation() {
 
   if (error || !order) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 pt-12 sm:px-6">
+        <MobileBackButton to="/" label="Back to shop" />
         <p className="text-sm text-stone-600">{error || 'Order not found.'}</p>
-        <Link
-          to="/"
-          className="mt-4 inline-flex min-h-[44px] items-center text-sm font-medium text-stone-800 underline"
-        >
-          Back to shop
-        </Link>
       </main>
     )
   }
@@ -80,7 +76,8 @@ export default function OrderConfirmation() {
   const addr = order.address
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pt-12 sm:px-6 sm:py-8">
+      <MobileBackButton to="/" label="Back to shop" />
       <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-950 sm:px-5">
         <p className="font-semibold">Order placed</p>
         <p className="mt-1 text-emerald-900/90">

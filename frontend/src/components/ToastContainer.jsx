@@ -5,7 +5,10 @@ export function ToastContainer() {
   const { toasts, removeToast } = useToast()
 
   return (
-    <div className="fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none sm:left-auto sm:right-6">
+    <div
+      className="fixed left-1/2 z-50 flex w-[min(92vw,32rem)] -translate-x-1/2 flex-col items-center gap-3 px-4 pointer-events-none"
+      style={{ top: 'var(--app-toast-top, calc(env(safe-area-inset-top) + 1rem))' }}
+    >
       {toasts.map((toast) => (
         <div key={toast.id} className="pointer-events-auto">
           <Toast toast={toast} onRemove={removeToast} />

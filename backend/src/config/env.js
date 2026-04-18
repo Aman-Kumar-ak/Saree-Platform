@@ -4,7 +4,6 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { adminPhoneSetFromEnv } from "../lib/phone.js";
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -87,7 +86,6 @@ export function getConfig() {
   );
   const jwtSecret = optionalEnv("JWT_SECRET");
   const jwtExpiresIn = optionalEnv("JWT_EXPIRES_IN") ?? "7d";
-  const adminPhones = adminPhoneSetFromEnv(optionalEnv("ADMIN_PHONES"));
   const firebaseServiceAccountJson = loadFirebaseServiceAccountJson();
   const cloudinaryCloudName = optionalEnv("CLOUDINARY_CLOUD_NAME");
   const cloudinaryApiKey = optionalEnv("CLOUDINARY_API_KEY");
@@ -104,7 +102,6 @@ export function getConfig() {
     shippingFlatRupees,
     jwtSecret,
     jwtExpiresIn,
-    adminPhones,
     firebaseServiceAccountJson,
     cloudinaryCloudName,
     cloudinaryApiKey,

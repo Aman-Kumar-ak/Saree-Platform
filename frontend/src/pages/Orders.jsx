@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import LoginPromptModal from '../components/LoginPromptModal.jsx'
-import { apiUrl } from '../config/api.js'
+import { CUSTOMER_RETRY_MESSAGE } from '../lib/errorMessages.js'
 
 const statusColors = {
   placed: 'bg-blue-100 text-blue-800',
@@ -35,25 +35,28 @@ export default function Orders() {
     }
   }, [])
 
-  useEffect(() => {
-    if (ready && user) {
-      fetchOrders()
-    }
-  }, [ready, user])
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     try {
       const r = await authFetch('/api/user/orders')
       if (!r.ok) throw new Error('Failed to fetch orders')
       const data = await r.json()
       setOrders(data.orders || [])
-    } catch (error) {
-      addToast('Failed to load orders', 'error', 3000)
+    } catch {
+      addToast(CUSTOMER_RETRY_MESSAGE, 'error', 3000)
     } finally {
       setLoading(false)
     }
-  }
+  }, [authFetch, addToast])
+
+  useEffect(() => {
+    if (ready && user) {
+      const id = setTimeout(() => {
+        void fetchOrders()
+      }, 0)
+      return () => clearTimeout(id)
+    }
+  }, [ready, user, fetchOrders])
 
   // If not logged in
   if (ready && !user) {

@@ -1,4 +1,3 @@
-import { getConfig } from "../config/env.js";
 import { firebasePhoneTo10 } from "../lib/phone.js";
 import { User } from "../models/User.js";
 
@@ -14,8 +13,6 @@ export async function upsertUserFromFirebase(decoded, opts = {}) {
     throw err;
   }
 
-  const { adminPhones } = getConfig();
-  const role = adminPhones.has(phone10) ? "admin" : "customer";
   const firebaseUid = decoded.uid;
   const nameIn = String(opts.name ?? "").trim();
   const loginOnly = Boolean(opts.loginOnly);
@@ -30,13 +27,13 @@ export async function upsertUserFromFirebase(decoded, opts = {}) {
       throw err;
     }
     
-    // Otherwise, create new user for signup
+    // Otherwise, create a new user.
     const name = nameIn || "Member";
     user = await User.create({
       firebaseUid,
       phone: phone10,
       name,
-      role,
+      role: "customer",
     });
     return user;
   }
@@ -47,7 +44,6 @@ export async function upsertUserFromFirebase(decoded, opts = {}) {
   if (nameIn) {
     user.name = nameIn;
   }
-  user.role = role;
   await user.save();
   return user;
 }

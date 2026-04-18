@@ -3,12 +3,15 @@
 html {
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-gutter: stable;
 }
 
 body {
   margin: 0;
   min-height: 100svh;
   min-height: 100dvh;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -20,4 +23,43 @@ body {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes admin-order-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--admin-order-flash-rgb), 0);
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+  35% {
+    box-shadow: 0 0 0 8px rgba(var(--admin-order-flash-rgb), 0.16);
+    background-color: rgba(var(--admin-order-flash-rgb), 0.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--admin-order-flash-rgb), 0);
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+.admin-order-flash {
+  animation: admin-order-flash 1.2s ease-out;
+}
+
+.admin-order-flash--placed {
+  --admin-order-flash-rgb: 59, 130, 246;
+}
+
+.admin-order-flash--packed {
+  --admin-order-flash-rgb: 168, 85, 247;
+}
+
+.admin-order-flash--shipped {
+  --admin-order-flash-rgb: 249, 115, 22;
+}
+
+.admin-order-flash--delivered {
+  --admin-order-flash-rgb: 34, 197, 94;
+}
+
+.admin-order-flash--cancelled {
+  --admin-order-flash-rgb: 239, 68, 68;
 }
