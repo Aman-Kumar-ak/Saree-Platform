@@ -155,6 +155,21 @@ function isZoomIgnoredTarget(target) {
   return target instanceof Element && Boolean(target.closest('[data-zoom-ignore="true"]'))
 }
 
+const TOUCH_LENS_SIZE = 184
+const TOUCH_LENS_Y_OFFSET = 112
+
+function getTouchLensPosition(point, wrapper) {
+  const radius = TOUCH_LENS_SIZE / 2
+  const minX = radius + 10
+  const maxX = Math.max(minX, wrapper.width - radius - 10)
+  const minY = radius + 10
+  const maxY = Math.max(minY, wrapper.height - radius - 10)
+  const x = Math.min(Math.max(point.left, minX), maxX)
+  const y = Math.min(Math.max(point.top - TOUCH_LENS_Y_OFFSET, minY), maxY)
+
+  return { left: x, top: y }
+}
+
 export default function ProductDetail() {
   const { slug } = useParams()
   const { addOrUpdate } = useCart()
@@ -170,6 +185,7 @@ export default function ProductDetail() {
   const [error, setError] = useState(null)
   const [qty, setQty] = useState(1)
   const [ambientRgb, setAmbientRgb] = useState('108, 120, 143')
+  const ambientColorRef = useRef('')
   const [viewerOpen, setViewerOpen] = useState(false)
   const [mouseZoom, setMouseZoom] = useState({
     active: false,
@@ -250,9 +266,12 @@ export default function ProductDetail() {
 
     const image = imageRef.current
     if (!image || !image.complete) return undefined
+    if (ambientColorRef.current) return undefined
 
     const id = window.requestAnimationFrame(() => {
-      setAmbientRgb(getAmbientColor(image))
+      const nextAmbient = getAmbientColor(image)
+      ambientColorRef.current = nextAmbient
+      setAmbientRgb(nextAmbient)
     })
 
     return () => window.cancelAnimationFrame(id)
@@ -360,12 +379,15 @@ export default function ProductDetail() {
       touchLongPressRef.current = true
       const point = getZoomPoint(event)
       if (!point) return
+      const wrapper = imageAreaRef.current?.getBoundingClientRect()
+      if (!wrapper) return
+      const lensPosition = getTouchLensPosition(point, wrapper)
       setTouchZoom({
         active: true,
         x: point.x,
         y: point.y,
-        left: point.left,
-        top: point.top,
+        left: lensPosition.left,
+        top: lensPosition.top,
       })
       setMouseZoom((current) => ({ ...current, active: false }))
     }, 220)
@@ -409,12 +431,15 @@ export default function ProductDetail() {
         hideZoom()
         return
       }
+      const wrapper = imageAreaRef.current?.getBoundingClientRect()
+      if (!wrapper) return
+      const lensPosition = getTouchLensPosition(point, wrapper)
       setTouchZoom({
         active: true,
         x: point.x,
         y: point.y,
-        left: point.left,
-        top: point.top,
+        left: lensPosition.left,
+        top: lensPosition.top,
       })
     }
   }
@@ -500,6 +525,13 @@ export default function ProductDetail() {
               touchLongPressRef.current = false
               hideZoom()
             }}
+            onTouchStart={(event) => {
+              if (isZoomIgnoredTarget(event.target)) return
+              event.preventDefault()
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault()
+            }}
             onPointerMove={handleImagePointerMove}
             onPointerEnter={(event) => {
               if (isZoomIgnoredTarget(event.target)) return
@@ -517,8 +549,13 @@ export default function ProductDetail() {
                 })
               }
             }}
-            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-[26px] bg-stone-100/70 outline-none focus-visible:ring-2 focus-visible:ring-stone-500/60 focus-visible:ring-offset-4 focus-visible:ring-offset-white"
-            style={{ touchAction: 'none' }}
+            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-[26px] bg-stone-100/70 outline-none select-none focus-visible:ring-2 focus-visible:ring-stone-500/60 focus-visible:ring-offset-4 focus-visible:ring-offset-white"
+            style={{
+              touchAction: 'pan-y',
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+            }}
           >
             <div
               aria-hidden
@@ -557,8 +594,8 @@ export default function ProductDetail() {
                 aria-hidden
                 className="pointer-events-none absolute z-30 overflow-hidden rounded-full border border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.24)] ring-1 ring-black/10"
                 style={{
-                  width: '150px',
-                  height: '150px',
+                  width: `${TOUCH_LENS_SIZE}px`,
+                  height: `${TOUCH_LENS_SIZE}px`,
                   left: `${touchZoom.left}px`,
                   top: `${touchZoom.top}px`,
                   transform: 'translate(-50%, -50%)',

@@ -247,7 +247,7 @@ export function AppLayout() {
                 </span>
               </span>
               {item.to === '/cart' && itemCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-stone-100 px-1 text-[11px] font-bold leading-none text-stone-950 sm:h-4 sm:min-w-4 sm:text-[10px]">
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-stone-900 px-1 text-[11px] font-bold leading-none text-white shadow-[0_6px_14px_rgba(15,23,42,0.28)] sm:h-4 sm:min-w-4 sm:text-[10px]">
                   {itemCount > 99 ? '99+' : itemCount}
                 </span>
               ) : null}

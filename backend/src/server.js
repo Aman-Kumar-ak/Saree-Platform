@@ -16,7 +16,52 @@ import addressesRouter from "./routes/addresses.js";
 const cfg = getConfig();
 const app = express();
 
-app.use(cors({ origin: cfg.corsOrigin, credentials: true }));
+function isPrivateNetworkHost(hostname) {
+  if (!hostname) return false
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname.endsWith('.local')
+  ) {
+    return true
+  }
+
+  if (/^10\.\d+\.\d+\.\d+$/.test(hostname)) return true
+  if (/^192\.168\.\d+\.\d+$/.test(hostname)) return true
+
+  const match = hostname.match(/^172\.(\d+)\.\d+\.\d+$/)
+  if (match) {
+    const secondOctet = Number(match[1])
+    return secondOctet >= 16 && secondOctet <= 31
+  }
+
+  return false
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true
+  if (cfg.corsOrigin === true) return true
+
+  const originList = Array.isArray(cfg.corsOrigin) ? cfg.corsOrigin : [cfg.corsOrigin]
+  if (originList.includes(origin)) return true
+
+  try {
+    const parsed = new URL(origin)
+    return isPrivateNetworkHost(parsed.hostname)
+  } catch {
+    return false
+  }
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      callback(null, isAllowedOrigin(origin))
+    },
+    credentials: true,
+  })
+)
 app.use(express.json());
 
 function sendHealthJson(_req, res) {

@@ -1,8 +1,7 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useAddresses } from '../context/AddressContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import {
-  ADDRESS_FIELD_HELPERS,
   INDIA_STATE_OPTIONS,
   createEmptyAddressForm,
   normalizeAddressForm,
@@ -10,86 +9,85 @@ import {
   validateAddressForm,
 } from '../lib/addressForm.js'
 
-export function AddressSelector({ value, onChange }) {
+export function AddressSelector({ value, onChange, showForm, onCloseForm }) {
   const { addresses } = useAddresses()
-  const scrollContainerRef = useRef(null)
-  const [showForm, setShowForm] = useState(false)
 
   const handleAddressAdded = (newAddress) => {
     onChange(newAddress)
-    setShowForm(false)
+    onCloseForm?.()
   }
 
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm ring-1 ring-black/[0.02]">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-              Delivery address
-            </p>
-            <p className="mt-1 text-sm text-stone-600">
-              Choose a saved address or add a new one.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowForm((open) => !open)}
-            className="inline-flex min-h-[40px] items-center justify-center rounded-full border border-stone-200 bg-stone-50 px-4 text-sm font-semibold text-stone-800 transition hover:border-stone-300 hover:bg-white"
-          >
-            {showForm ? 'Close' : '+ Add New'}
-          </button>
+      <div
+        id="delivery-address-form"
+        className={`grid overflow-hidden transition-all duration-300 ease-out ${
+          showForm
+            ? 'max-h-[1400px] grid-rows-[1fr] opacity-100'
+            : 'max-h-0 grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="min-h-0">
+          <AddressForm
+            onClose={onCloseForm}
+            onAddressAdded={handleAddressAdded}
+          />
         </div>
-
-        {showForm ? (
-          <div className="mt-4">
-            <AddressForm
-              onClose={() => setShowForm(false)}
-              onAddressAdded={handleAddressAdded}
-            />
-          </div>
-        ) : null}
-      </section>
+      </div>
 
       {addresses.length > 0 ? (
         <div>
           <p className="mb-3 text-sm font-medium text-stone-700">
             Saved Addresses
           </p>
-          <div
-            ref={scrollContainerRef}
-            className="flex gap-3 overflow-x-auto pb-2 scroll-smooth"
-            style={{ scrollBehavior: 'smooth' }}
-          >
+          <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth">
             {addresses.map((address) => (
               <button
                 key={address._id}
                 type="button"
                 onClick={() => onChange(address)}
-                className={`w-72 shrink-0 rounded-2xl border p-4 text-left transition ${
+                className={`w-72 shrink-0 rounded-[24px] border p-4 text-left shadow-sm transition ${
                   value?._id === address._id
-                    ? 'border-stone-900 bg-stone-50 shadow-sm'
-                    : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'
+                    ? 'border-stone-900 bg-stone-950 text-white shadow-[0_18px_35px_rgba(15,23,42,0.16)]'
+                    : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-md'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-stone-950">
+                    <p
+                      className={`text-sm font-semibold ${
+                        value?._id === address._id ? 'text-white' : 'text-stone-950'
+                      }`}
+                    >
                       {address.fullName}
                     </p>
-                    <p className="mt-1 text-xs text-stone-600">{address.phone}</p>
+                    <p
+                      className={`mt-1 text-xs ${
+                        value?._id === address._id ? 'text-stone-300' : 'text-stone-600'
+                      }`}
+                    >
+                      {address.phone}
+                    </p>
                   </div>
                   {address.isDefault ? (
-                    <span className="inline-flex shrink-0 rounded-full bg-stone-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                    <span className="inline-flex shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
                       Default
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-3 text-xs leading-relaxed text-stone-600">
+                <p
+                  className={`mt-3 text-xs leading-relaxed ${
+                    value?._id === address._id ? 'text-stone-200' : 'text-stone-600'
+                  }`}
+                >
                   {address.line1}
                   {address.line2 && `, ${address.line2}`}
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-stone-600">
+                <p
+                  className={`mt-1 text-xs leading-relaxed ${
+                    value?._id === address._id ? 'text-stone-300' : 'text-stone-600'
+                  }`}
+                >
                   {address.city}, {address.state} {address.pincode}
                 </p>
               </button>
@@ -147,10 +145,8 @@ function AddressForm({ onClose, onAddressAdded }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-stone-200 bg-white p-5 space-y-4"
+      className="space-y-4 rounded-[28px] border border-stone-200 bg-white p-5 shadow-none"
     >
-      <h3 className="font-semibold text-stone-900">Add New Address</h3>
-
       <div>
         <label className="block text-xs font-medium text-stone-600 mb-2">
           Full Name *
@@ -164,9 +160,6 @@ function AddressForm({ onClose, onAddressAdded }) {
           placeholder="Enter full name"
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
-        <p className="mt-2 text-xs text-stone-500">
-          {ADDRESS_FIELD_HELPERS.fullName}
-        </p>
       </div>
 
       <div>
@@ -185,9 +178,6 @@ function AddressForm({ onClose, onAddressAdded }) {
           placeholder="10-digit mobile number"
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
-        <p className="mt-2 text-xs text-stone-500">
-          {ADDRESS_FIELD_HELPERS.phone}
-        </p>
       </div>
 
       <div>
@@ -203,9 +193,6 @@ function AddressForm({ onClose, onAddressAdded }) {
           placeholder="House no., street, etc."
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
-        <p className="mt-2 text-xs text-stone-500">
-          {ADDRESS_FIELD_HELPERS.line1}
-        </p>
       </div>
 
       <div>
@@ -232,13 +219,10 @@ function AddressForm({ onClose, onAddressAdded }) {
             required
             maxLength="80"
             value={form.city}
-            onChange={(e) => updateField('city', e.target.value)}
-            placeholder="Enter city"
-            className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
-          />
-          <p className="mt-2 text-xs text-stone-500">
-            {ADDRESS_FIELD_HELPERS.city}
-          </p>
+          onChange={(e) => updateField('city', e.target.value)}
+          placeholder="Enter city"
+          className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
+        />
         </div>
         <div>
           <label className="block text-xs font-medium text-stone-600 mb-2">
@@ -257,9 +241,6 @@ function AddressForm({ onClose, onAddressAdded }) {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-xs text-stone-500">
-            {ADDRESS_FIELD_HELPERS.state}
-          </p>
         </div>
       </div>
 
@@ -279,23 +260,20 @@ function AddressForm({ onClose, onAddressAdded }) {
           placeholder="6-digit PIN code"
           className="w-full min-h-[44px] rounded-lg border border-stone-200 px-3 text-sm focus:border-stone-900 focus:ring-2 focus:ring-stone-400"
         />
-        <p className="mt-2 text-xs text-stone-500">
-          {ADDRESS_FIELD_HELPERS.pincode}
-        </p>
       </div>
 
       <div className="flex gap-3 pt-2">
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 min-h-[44px] rounded-lg border border-stone-200 text-stone-700 font-medium text-sm hover:bg-stone-50 transition"
+          className="flex-1 min-h-[44px] rounded-xl border border-stone-200 bg-white text-stone-700 font-medium text-sm hover:bg-stone-50 transition"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 min-h-[44px] rounded-lg bg-stone-900 text-white font-medium text-sm disabled:opacity-50 transition"
+          className="flex-1 min-h-[44px] rounded-xl bg-stone-900 text-white font-medium text-sm disabled:opacity-50 transition hover:bg-stone-800"
         >
           {loading ? 'Saving...' : 'Save Address'}
         </button>

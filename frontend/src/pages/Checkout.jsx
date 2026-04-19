@@ -14,6 +14,7 @@ export default function Checkout() {
   const { lines, itemCount, clear } = useCart()
   const { addToast } = useToast()
   const [selectedAddress, setSelectedAddress] = useState(null)
+  const [showAddressForm, setShowAddressForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -108,16 +109,20 @@ export default function Checkout() {
 
   if (itemCount === 0) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 pt-12 sm:px-6">
-        <MobileBackButton to="/" label="Back to shop" />
+      <main className="mx-auto w-full max-w-6xl px-4 pt-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6">
+        <div className="mb-1 flex justify-start sm:hidden">
+          <MobileBackButton to="/" label="Back to shop" variant="inline" />
+        </div>
         <p className="text-sm text-stone-600">Your cart is empty.</p>
       </main>
     )
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg px-4 py-6 pt-12 sm:px-6 sm:py-8 lg:max-w-6xl">
-      <MobileBackButton to="/cart" label="Back to cart" />
+    <main className="mx-auto w-full max-w-lg px-4 pt-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-[max(7.5rem,env(safe-area-inset-bottom))] lg:max-w-6xl">
+      <div className="mb-1 flex justify-start sm:hidden">
+        <MobileBackButton to="/cart" label="Back to cart" variant="inline" />
+      </div>
       <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
         Checkout
       </h1>
@@ -125,20 +130,33 @@ export default function Checkout() {
         Cash on delivery (COD). We&apos;ll confirm your order on this screen.
       </p>
 
-      <div className="mt-6 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
+      <div className="mt-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
         <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-sm font-semibold text-stone-800 mb-4">
-            Delivery Address
-          </h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold tracking-tight text-stone-950 sm:text-lg">
+              Delivery Address
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowAddressForm((open) => !open)}
+              className="inline-flex min-h-[40px] items-center justify-center rounded-full bg-stone-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
+              aria-expanded={showAddressForm}
+              aria-controls="delivery-address-form"
+            >
+              {showAddressForm ? 'Close' : 'Add'}
+            </button>
+          </div>
           <AddressSelector
             value={selectedAddress}
             onChange={setSelectedAddress}
+            showForm={showAddressForm}
+            onCloseForm={() => setShowAddressForm(false)}
           />
         </div>
 
         <form
           onSubmit={onSubmit}
-          className="mt-6 space-y-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5 lg:mt-0"
+          className="mt-6 space-y-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5 lg:mt-0 lg:sticky lg:top-6"
         >
           <div>
             <h2 className="text-sm font-semibold text-stone-800 mb-3">Summary</h2>
