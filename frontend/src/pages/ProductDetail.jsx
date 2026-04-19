@@ -268,13 +268,27 @@ export default function ProductDetail() {
     if (!image || !image.complete) return undefined
     if (ambientColorRef.current) return undefined
 
-    const id = window.requestAnimationFrame(() => {
+    const schedule =
+      window.requestIdleCallback ??
+      ((callback) =>
+        window.setTimeout(
+          () =>
+            callback({
+              didTimeout: true,
+              timeRemaining: () => 0,
+            }),
+          0
+        ))
+    const cancel =
+      window.cancelIdleCallback ?? ((id) => window.clearTimeout(id))
+
+    const id = schedule(() => {
       const nextAmbient = getAmbientColor(image)
       ambientColorRef.current = nextAmbient
       setAmbientRgb(nextAmbient)
     })
 
-    return () => window.cancelAnimationFrame(id)
+    return () => cancel(id)
   }, [product])
 
   if (loading) {
@@ -525,10 +539,6 @@ export default function ProductDetail() {
               touchLongPressRef.current = false
               hideZoom()
             }}
-            onTouchStart={(event) => {
-              if (isZoomIgnoredTarget(event.target)) return
-              event.preventDefault()
-            }}
             onContextMenu={(event) => {
               event.preventDefault()
             }}
@@ -570,7 +580,9 @@ export default function ProductDetail() {
                   alt={product.name}
                   crossOrigin="anonymous"
                   onLoad={(event) => {
-                    setAmbientRgb(getAmbientColor(event.currentTarget))
+                    const nextAmbient = getAmbientColor(event.currentTarget)
+                    ambientColorRef.current = nextAmbient
+                    setAmbientRgb(nextAmbient)
                   }}
                   className="h-full max-h-[86svh] w-full rounded-[18px] object-contain drop-shadow-[0_20px_45px_rgba(15,23,42,0.12)] transition duration-500 ease-out md:group-hover:scale-[1.24] md:group-hover:drop-shadow-[0_32px_80px_rgba(15,23,42,0.22)]"
                   style={{

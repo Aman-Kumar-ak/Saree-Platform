@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
@@ -9,7 +9,9 @@ export function AppLayout() {
   const { itemCount } = useCart()
   const { user, ready } = useAuth()
   const [showHeader, setShowHeader] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
+  const lastScrollYRef = useRef(0)
+  const scrollRafRef = useRef(0)
+  const headerVisibleRef = useRef(true)
 
   const path = location.pathname
   const isHome = path === '/'
@@ -131,37 +133,44 @@ export function AppLayout() {
   ]
 
   useEffect(() => {
-    document.title = title ? `${title} · Shop` : 'Shop'
+    document.title = title ? `${title} \u00b7 Shop` : 'Shop'
   }, [title])
 
   useEffect(() => {
-    let ticking = false
-
     function updateHeaderVisibility() {
       const currentY = window.scrollY
-      const scrollingUp = currentY < lastScrollY
+      const scrollingUp = currentY < lastScrollYRef.current
       const nearTop = currentY < 24
+      const shouldShow = nearTop || scrollingUp || currentY <= 72
 
-      if (nearTop || scrollingUp) {
-        setShowHeader(true)
-      } else if (currentY > 72) {
-        setShowHeader(false)
+      if (shouldShow !== headerVisibleRef.current) {
+        headerVisibleRef.current = shouldShow
+        setShowHeader(shouldShow)
       }
 
-      setLastScrollY(currentY)
-      ticking = false
+      lastScrollYRef.current = currentY
+      scrollRafRef.current = 0
     }
 
     function onScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(updateHeaderVisibility)
-        ticking = true
+      if (!scrollRafRef.current) {
+        scrollRafRef.current = window.requestAnimationFrame(updateHeaderVisibility)
       }
     }
 
+    const currentY = window.scrollY
+    lastScrollYRef.current = currentY
+    headerVisibleRef.current = currentY <= 72
+    setShowHeader(headerVisibleRef.current)
+
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [lastScrollY])
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (scrollRafRef.current) {
+        window.cancelAnimationFrame(scrollRafRef.current)
+      }
+    }
+  }, [location.pathname])
 
   useEffect(() => {
     const topOffset = showHeader
@@ -197,7 +206,7 @@ export function AppLayout() {
           <nav className="flex items-center justify-self-end gap-2 sm:gap-3">
             {!ready ? (
               <span className="text-xs text-stone-400" aria-hidden>
-                …
+                ...
               </span>
             ) : user ? (
               user.role === 'admin' ? (
@@ -240,9 +249,7 @@ export function AppLayout() {
             >
               <span className="inline-flex flex-col items-center justify-center gap-0.5">
                 {item.icon}
-                <span
-                  className="text-[9px] font-semibold leading-none tracking-tight sm:text-[9px]"
-                >
+                <span className="text-[9px] font-semibold leading-none tracking-tight sm:text-[9px]">
                   {item.label}
                 </span>
               </span>

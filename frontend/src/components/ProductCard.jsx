@@ -33,6 +33,10 @@ export function ProductCard({ product }) {
 
   return (
     <article
+      style={{
+        contentVisibility: 'auto',
+        containIntrinsicSize: '360px 560px',
+      }}
       className={`group overflow-hidden rounded-2xl border transition duration-200 [contain:layout] ${
         isOutOfStock
           ? 'border-stone-200/50 bg-stone-50/50 ring-1 ring-black/[0.02] opacity-60'
@@ -56,7 +60,7 @@ export function ProductCard({ product }) {
                 loading="lazy"
                 decoding="async"
                 className="h-full w-full"
-                imageClassName={`h-full w-full object-cover will-change-transform transition-[transform,filter,opacity] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                imageClassName={`h-full w-full object-cover transition-[transform,filter,opacity] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   isOutOfStock ? 'grayscale' : 'sm:group-hover:scale-[1.09]'
                 }`}
               />
@@ -133,7 +137,7 @@ export function ProductCard({ product }) {
                 isOutOfStock ? 'text-stone-400' : 'text-stone-800'
               }`}
             >
-              {isOutOfStock ? 'Out of stock' : `₹${price.toLocaleString('en-IN')}`}
+              {isOutOfStock ? 'Out of stock' : `\u20b9${price.toLocaleString('en-IN')}`}
             </p>
           </div>
         </Link>

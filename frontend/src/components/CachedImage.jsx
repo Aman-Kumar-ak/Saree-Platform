@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   cancelCachedImageRequest,
   releaseCachedImage,
@@ -16,11 +16,42 @@ export default function CachedImage({
   onClick,
   onError,
 }) {
+  const wrapperRef = useRef(null)
   const [resolvedSrc, setResolvedSrc] = useState('')
   const [loaded, setLoaded] = useState(false)
+  const [shouldResolve, setShouldResolve] = useState(() => loading !== 'lazy')
 
   useEffect(() => {
     if (!src) return undefined
+    if (loading !== 'lazy') return undefined
+
+    const node = wrapperRef.current
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      const id = window.setTimeout(() => setShouldResolve(true), 0)
+      return () => window.clearTimeout(id)
+    }
+
+    if (shouldResolve) return undefined
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldResolve(true)
+          observer.disconnect()
+        }
+      },
+      {
+        rootMargin: '240px 0px',
+        threshold: 0.01,
+      }
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [src, loading, version, shouldResolve])
+
+  useEffect(() => {
+    if (!src || !shouldResolve) return undefined
 
     let cancelled = false
     let currentResolved = ''
@@ -39,10 +70,10 @@ export default function CachedImage({
         cancelCachedImageRequest(src, version)
       }
     }
-  }, [src, version])
+  }, [src, version, shouldResolve])
 
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div ref={wrapperRef} className={`relative overflow-hidden ${className}`}>
       <div
         aria-hidden
         className={`absolute inset-0 bg-[linear-gradient(135deg,rgba(250,250,249,0.92),rgba(231,229,228,0.74))] transition-opacity duration-900 ease-out ${
