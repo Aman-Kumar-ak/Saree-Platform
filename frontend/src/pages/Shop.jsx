@@ -1,26 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ProductCard } from '../components/ProductCard.jsx'
+import LoadingState from '../components/LoadingState.jsx'
 import { apiUrl } from '../config/api.js'
 import { CUSTOMER_RETRY_MESSAGE } from '../lib/errorMessages.js'
-
-function CatalogSkeleton() {
-  return (
-    <ul className="mt-6 grid list-none grid-cols-2 gap-3 p-0 sm:mt-8 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <li key={i}>
-          <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white">
-            <div className="aspect-[2/3] animate-pulse bg-stone-200/80" />
-            <div className="space-y-2 p-3">
-              <div className="h-3.5 animate-pulse rounded bg-stone-200" />
-              <div className="h-3 w-16 animate-pulse rounded bg-stone-200" />
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -80,7 +63,7 @@ export default function Shop() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pt-5 sm:px-6 sm:pt-8">
+    <main className="mx-auto w-full max-w-6xl px-4 pt-5 pb-24 sm:px-6 sm:pt-8 sm:pb-16 lg:pb-12">
       <div className="max-w-2xl">
         <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
           Shop
@@ -116,7 +99,13 @@ export default function Shop() {
         </div>
       </div>
 
-      {loading && <CatalogSkeleton />}
+      {loading && (
+        <LoadingState
+          title="Loading shop..."
+          description="Fetching categories and products."
+          className="min-h-[32svh] py-10"
+        />
+      )}
       {error && (
         <div className="mt-6 rounded-2xl border border-amber-200/90 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950 sm:mt-8">
           {error}
@@ -128,7 +117,7 @@ export default function Shop() {
         </p>
       )}
       {!loading && !error && products.length > 0 && (
-        <ul className="mt-6 grid list-none grid-cols-2 gap-3 p-0 sm:mt-8 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+        <ul className="mt-6 grid list-none grid-cols-2 gap-3 p-0 pb-6 sm:mt-8 sm:grid-cols-3 sm:gap-4 sm:pb-10 lg:grid-cols-4 lg:pb-6">
           {products.map((p) => (
             <li key={p._id}>
               <ProductCard product={p} />

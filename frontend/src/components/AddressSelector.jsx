@@ -22,70 +22,81 @@ export function AddressSelector({ value, onChange }) {
 
   return (
     <div className="space-y-4">
-      {/* Show form if adding new address, otherwise show saved addresses */}
-      {showForm ? (
-        <AddressForm 
-          onClose={() => setShowForm(false)}
-          onAddressAdded={handleAddressAdded}
-        />
-      ) : (
-        <>
-          {/* Saved Addresses */}
-          {addresses.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-stone-700 mb-3">
-                Saved Addresses
-              </p>
-              <div
-                ref={scrollContainerRef}
-                className="flex gap-3 overflow-x-auto scroll-smooth pb-2"
-                style={{ scrollBehavior: 'smooth' }}
-              >
-              {addresses.map((address) => (
-                <button
-                  key={address._id}
-                  type="button"
-                  onClick={() => onChange(address)}
-                  className={`flex-shrink-0 w-72 p-4 rounded-xl border-2 text-left transition ${
-                    value?._id === address._id
-                      ? 'border-stone-900 bg-stone-50'
-                      : 'border-stone-200 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  <p className="font-semibold text-sm text-stone-900">
-                    {address.fullName}
-                  </p>
-                  <p className="text-xs text-stone-600 mt-1">
-                    {address.phone}
-                  </p>
-                  <p className="text-xs text-stone-600 mt-2">
-                    {address.line1}
-                    {address.line2 && `, ${address.line2}`}
-                  </p>
-                  <p className="text-xs text-stone-600">
-                    {address.city}, {address.state} {address.pincode}
-                  </p>
-                  {address.isDefault && (
-                    <div className="mt-2 inline-block bg-stone-900 text-white text-[10px] font-semibold px-2 py-1 rounded-full">
-                      Default
-                    </div>
-                  )}
-                </button>
-              ))}
-              </div>
-            </div>
-          )}
-
-          {/* Add New Address Button */}
+      <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm ring-1 ring-black/[0.02]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+              Delivery address
+            </p>
+            <p className="mt-1 text-sm text-stone-600">
+              Choose a saved address or add a new one.
+            </p>
+          </div>
           <button
             type="button"
-            onClick={() => setShowForm(true)}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-stone-300 text-stone-700 font-medium text-sm hover:bg-stone-50 transition"
+            onClick={() => setShowForm((open) => !open)}
+            className="inline-flex min-h-[40px] items-center justify-center rounded-full border border-stone-200 bg-stone-50 px-4 text-sm font-semibold text-stone-800 transition hover:border-stone-300 hover:bg-white"
           >
-            + Add New Address
+            {showForm ? 'Close' : '+ Add New'}
           </button>
-        </>
-      )}
+        </div>
+
+        {showForm ? (
+          <div className="mt-4">
+            <AddressForm
+              onClose={() => setShowForm(false)}
+              onAddressAdded={handleAddressAdded}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {addresses.length > 0 ? (
+        <div>
+          <p className="mb-3 text-sm font-medium text-stone-700">
+            Saved Addresses
+          </p>
+          <div
+            ref={scrollContainerRef}
+            className="flex gap-3 overflow-x-auto pb-2 scroll-smooth"
+            style={{ scrollBehavior: 'smooth' }}
+          >
+            {addresses.map((address) => (
+              <button
+                key={address._id}
+                type="button"
+                onClick={() => onChange(address)}
+                className={`w-72 shrink-0 rounded-2xl border p-4 text-left transition ${
+                  value?._id === address._id
+                    ? 'border-stone-900 bg-stone-50 shadow-sm'
+                    : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-stone-950">
+                      {address.fullName}
+                    </p>
+                    <p className="mt-1 text-xs text-stone-600">{address.phone}</p>
+                  </div>
+                  {address.isDefault ? (
+                    <span className="inline-flex shrink-0 rounded-full bg-stone-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                      Default
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-stone-600">
+                  {address.line1}
+                  {address.line2 && `, ${address.line2}`}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-stone-600">
+                  {address.city}, {address.state} {address.pincode}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

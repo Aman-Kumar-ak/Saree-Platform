@@ -47,6 +47,10 @@ export function WishlistButton({
       type="button"
       aria-label={active ? 'Remove from wishlist' : 'Add to wishlist'}
       aria-pressed={active}
+      data-zoom-ignore="true"
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
       onClick={handleClick}
       className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/95 text-stone-600 shadow-lg backdrop-blur-sm transition [-webkit-tap-highlight-color:transparent] active:scale-[0.96] ${
         active

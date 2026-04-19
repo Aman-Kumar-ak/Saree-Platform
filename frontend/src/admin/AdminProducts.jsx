@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import LoadingState from '../components/LoadingState.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function AdminProducts() {
@@ -238,7 +239,12 @@ export default function AdminProducts() {
   }
 
   if (loading) {
-    return <p className="text-sm text-stone-500">Loadingâ€¦</p>
+    return (
+      <LoadingState
+        title="Loading products..."
+        description="Fetching the latest catalog and categories."
+      />
+    )
   }
 
   return (
@@ -354,24 +360,19 @@ export default function AdminProducts() {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
-              {images.length ? (
-                <div className="rounded-2xl bg-stone-50 p-3 text-xs text-stone-600">
-                  <p className="font-medium text-stone-700">Uploaded images</p>
-                  <ul className="mt-2 space-y-1">
-                    {images.map((u) => (
-                      <li key={u} className="truncate">
-                        {u}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              <ImagePreviewList
+                title="Uploaded images"
+                images={images}
+                onRemoveImage={(id) =>
+                  setImages((prev) => prev.filter((item) => item.id !== id))
+                }
+              />
               <button
                 type="submit"
                 disabled={busy || !categoryId}
                 className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
               >
-                {busy ? 'Saving…' : 'Create product'}
+                {busy ? 'Saving...' : 'Create product'}
               </button>
             </form>
           </div>
@@ -516,6 +517,60 @@ function ProductCardThumb({ src, alt }) {
           No Image
         </div>
       )}
+    </div>
+  )
+}
+
+function ImagePreviewList({ title, images, onRemoveImage }) {
+  if (!images.length) return null
+
+  return (
+    <div className="rounded-2xl bg-stone-50 p-3 text-xs text-stone-600">
+      <p className="font-medium text-stone-700">{title}</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        {images.map((item) => {
+          const src = item.kind === 'local' ? item.previewUrl : item.url
+
+          return (
+            <div
+              key={item.id}
+              className="rounded-3xl border border-stone-200 bg-gradient-to-br from-white to-stone-50 p-3 shadow-sm"
+            >
+              <div className="grid grid-cols-[80px_1fr] gap-3">
+                <button
+                  type="button"
+                  className="group flex h-24 w-20 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white ring-1 ring-stone-100"
+                  onClick={() => window.open(src, '_blank', 'noopener,noreferrer')}
+                  aria-label="Preview image"
+                >
+                  <img
+                    src={src}
+                    alt="Selected product"
+                    className="h-full w-full object-contain p-1.5 transition group-hover:scale-[1.02]"
+                    loading="lazy"
+                  />
+                </button>
+                <div className="min-w-0 flex flex-1 flex-col justify-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[36px] items-center justify-center rounded-2xl bg-stone-950 px-3 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99] hover:bg-stone-800"
+                    onClick={() => window.open(src, '_blank', 'noopener,noreferrer')}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-[32px] items-center justify-center rounded-2xl border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition active:scale-[0.99] hover:border-red-300 hover:bg-red-50"
+                    onClick={() => onRemoveImage(item.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -670,63 +725,11 @@ function EditProductDialog({
             />
           </div>
 
-          {images.length ? (
-            <div className="rounded-2xl bg-stone-50 p-3 text-xs text-stone-600">
-              <p className="font-medium text-stone-700">Images</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                {images.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-3xl border border-stone-200 bg-gradient-to-br from-white to-stone-50 p-3 shadow-sm"
-                  >
-                    <div className="grid grid-cols-[80px_1fr] gap-3">
-                      <button
-                        type="button"
-                        className="group flex h-24 w-20 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-white ring-1 ring-stone-100"
-                        onClick={() =>
-                          window.open(
-                            item.kind === 'local' ? item.previewUrl : item.url,
-                            '_blank',
-                            'noopener,noreferrer'
-                          )
-                        }
-                        aria-label="Preview image"
-                        >
-                        <img
-                          src={item.kind === 'local' ? item.previewUrl : item.url}
-                          alt="Selected product"
-                          className="h-full w-full object-contain p-1.5 transition group-hover:scale-[1.02]"
-                          loading="lazy"
-                        />
-                      </button>
-                      <div className="min-w-0 flex flex-1 flex-col justify-center gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex min-h-[36px] items-center justify-center rounded-2xl bg-stone-950 px-3 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99] hover:bg-stone-800"
-                          onClick={() =>
-                            window.open(
-                              item.kind === 'local' ? item.previewUrl : item.url,
-                              '_blank',
-                              'noopener,noreferrer'
-                            )
-                          }
-                        >
-                          Preview
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex min-h-[32px] items-center justify-center rounded-2xl border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition active:scale-[0.99] hover:border-red-300 hover:bg-red-50"
-                          onClick={() => onRemoveImage(item.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          <ImagePreviewList
+            title="Images"
+            images={images}
+            onRemoveImage={onRemoveImage}
+          />
 
           {notice ? (
             <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -754,7 +757,7 @@ function EditProductDialog({
               disabled={busy}
               className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
             >
-              {busy ? 'Savingâ€¦' : 'Save changes'}
+              {busy ? 'Saving...' : 'Save changes'}
             </button>
           </div>
         </form>

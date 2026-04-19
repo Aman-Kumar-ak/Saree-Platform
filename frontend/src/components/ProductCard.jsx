@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import CachedImage from './CachedImage.jsx'
 import { WishlistButton } from './WishlistButton.jsx'
 
 export function ProductCard({ product }) {
   const { addOrUpdate, lines } = useCart()
   const { addToast } = useToast()
   const img = product.images?.[0]
+  const imageVersion = product.updatedAt ?? product.createdAt ?? ''
   const price = typeof product.price === 'number' ? product.price : 0
   const isOutOfStock =
     typeof product.stock === 'number' ? product.stock < 1 : false
@@ -46,14 +48,17 @@ export function ProductCard({ product }) {
           />
           <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-100 to-stone-200/80">
             {img ? (
-              <img
+              <CachedImage
+                key={`${img}-${imageVersion}`}
                 src={img}
+                version={imageVersion}
                 alt={product.name}
-                className={`h-full w-full object-cover transition duration-300 ${
-                  isOutOfStock ? 'grayscale' : 'sm:group-hover:scale-[1.02]'
-                }`}
                 loading="lazy"
                 decoding="async"
+                className="h-full w-full"
+                imageClassName={`h-full w-full object-cover will-change-transform transition-[transform,filter,opacity] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  isOutOfStock ? 'grayscale' : 'sm:group-hover:scale-[1.09]'
+                }`}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-2 text-center text-xs text-stone-500">

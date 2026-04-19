@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import MobileBackButton from '../components/MobileBackButton.jsx'
+import LoadingState from '../components/LoadingState.jsx'
 import { apiUrl } from '../config/api.js'
 
 export default function OrderConfirmation() {
@@ -59,7 +60,10 @@ export default function OrderConfirmation() {
   if (loading) {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-        <p className="text-sm text-stone-500">Loading order…</p>
+        <LoadingState
+          title="Loading order..."
+          description="Fetching the order summary you requested."
+        />
       </main>
     )
   }

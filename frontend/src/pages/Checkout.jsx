@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import { AddressSelector } from '../components/AddressSelector.jsx'
 import LoginPromptModal from '../components/LoginPromptModal.jsx'
+import LoadingState from '../components/LoadingState.jsx'
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -32,9 +33,10 @@ export default function Checkout() {
   // Show loading state while checking auth
   if (!ready) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-        <p className="text-sm text-stone-600">Loading...</p>
-      </main>
+      <LoadingState
+        title="Loading checkout..."
+        description="Preparing your cart and delivery options."
+      />
     )
   }
 

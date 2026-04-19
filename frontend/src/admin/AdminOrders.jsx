@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import LoadingState from '../components/LoadingState.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ADMIN_SUPPORT_MESSAGE } from '../lib/errorMessages.js'
 
@@ -184,7 +185,12 @@ export default function AdminOrders() {
   }
 
   if (loading) {
-    return <p className="text-sm text-stone-500">Loading orders...</p>
+    return (
+      <LoadingState
+        title="Loading orders..."
+        description="Pulling the latest order queue."
+      />
+    )
   }
 
   if (error) {
@@ -605,14 +611,6 @@ function OrderEditor({ order, onSave, isSaving }) {
   const [trackingId, setTrackingId] = useState(() => order.trackingId || '')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
-
-  useEffect(() => {
-    setStatus(order.orderStatus)
-  }, [order.orderStatus])
-
-  useEffect(() => {
-    setTrackingId(order.trackingId || '')
-  }, [order.trackingId])
 
   async function save() {
     setErr(null)

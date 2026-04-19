@@ -196,8 +196,8 @@ export default function Login() {
   return (
     <div className="min-h-svh bg-[#fafaf9] px-4 py-10 pt-[max(2.5rem,env(safe-area-inset-top))]">
       <div className="mx-auto w-full max-w-md">
-        <MobileBackButton to="/" label="Back to home" />
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight text-stone-900">
+        <MobileBackButton to="/" label="Back to home" variant="inline" />
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-stone-900">
           Account
         </h1>
         <p className="mt-1 text-sm text-stone-600">
@@ -280,7 +280,7 @@ export default function Login() {
                 onClick={sendOtp}
                 className="flex min-h-[52px] w-full items-center justify-center rounded-xl bg-stone-900 text-sm font-semibold text-white touch-manipulation disabled:opacity-60 active:opacity-90"
               >
-                {busy ? 'Sending…' : 'Send OTP'}
+                {busy ? 'Sending...' : 'Send OTP'}
               </button>
             </>
           ) : (
@@ -316,7 +316,7 @@ export default function Login() {
                 onClick={verifyOtp}
                 className="flex min-h-[52px] w-full items-center justify-center rounded-xl bg-stone-900 text-sm font-semibold text-white touch-manipulation disabled:opacity-60 active:opacity-90"
               >
-                {busy ? 'Verifying…' : 'Verify & continue'}
+                {busy ? 'Verifying...' : 'Verify & continue'}
               </button>
               <button
                 type="button"

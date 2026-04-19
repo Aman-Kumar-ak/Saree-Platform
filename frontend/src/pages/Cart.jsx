@@ -25,7 +25,7 @@ export default function Cart() {
   )
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:pb-12">
       <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
         Cart
       </h1>

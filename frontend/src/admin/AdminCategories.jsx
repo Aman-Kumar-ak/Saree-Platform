@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
+import LoadingState from '../components/LoadingState.jsx'
 
 export default function AdminCategories() {
   const { authFetch } = useAuth()
@@ -112,7 +113,12 @@ export default function AdminCategories() {
   }
 
   if (loading) {
-    return <p className="text-sm text-stone-500">Loading…</p>
+    return (
+      <LoadingState
+        title="Loading categories..."
+        description="Fetching category data from the server."
+      />
+    )
   }
 
   return (
@@ -172,7 +178,7 @@ export default function AdminCategories() {
                 disabled={busy}
                 className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
               >
-                {busy ? 'Saving…' : 'Create category'}
+                {busy ? 'Saving...' : 'Create category'}
               </button>
             </form>
           </div>
@@ -359,7 +365,7 @@ function CategoryEditDialog({
             disabled={busy}
             className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
           >
-            {busy ? 'Saving…' : 'Save changes'}
+                {busy ? 'Saving...' : 'Save changes'}
           </button>
         </form>
       </div>

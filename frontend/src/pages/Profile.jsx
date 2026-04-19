@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import LoginPromptModal from '../components/LoginPromptModal.jsx'
+import LoadingState from '../components/LoadingState.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Profile() {
@@ -20,14 +21,15 @@ export default function Profile() {
 
   if (!ready) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-        <p className="text-sm text-stone-600">Loading...</p>
-      </main>
+      <LoadingState
+        title="Loading profile..."
+        description="Checking your account details."
+      />
     )
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:pb-12">
       <div className="max-w-2xl">
         <h1 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
           My Profile
