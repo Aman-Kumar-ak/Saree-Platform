@@ -19,13 +19,22 @@ const app = express();
 app.use(cors({ origin: cfg.corsOrigin, credentials: true }));
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => {
-  const body = { ok: true, db: isDbConnected() };
+function sendHealthJson(_req, res) {
+  const body = { ok: true, running: true, db: isDbConnected() };
   if (cfg.apiServiceName) {
     body.service = cfg.apiServiceName;
   }
   res.json(body);
-});
+}
+
+function sendPingText(_req, res) {
+  res.type("text/plain").send("ok running");
+}
+
+app.get("/api/health", sendHealthJson);
+app.get("/healthz", sendPingText);
+app.get("/api/ping", sendPingText);
+app.get("/", sendPingText);
 
 app.use("/api/auth", requireDb, authRouter);
 app.use("/api/categories", requireDb, categoriesRouter);

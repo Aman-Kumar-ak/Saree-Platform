@@ -4,12 +4,17 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = env.VITE_DEV_PROXY_TARGET
+  const proxyTarget =
+    env.VITE_DEV_PROXY_TARGET && String(env.VITE_DEV_PROXY_TARGET).trim() !== ''
+      ? String(env.VITE_DEV_PROXY_TARGET).trim()
+      : mode === 'development'
+        ? 'http://localhost:5000'
+        : ''
   const proxy =
-    proxyTarget && String(proxyTarget).trim() !== ''
+    proxyTarget
       ? {
           '/api': {
-            target: String(proxyTarget).trim(),
+            target: proxyTarget,
             changeOrigin: true,
           },
         }

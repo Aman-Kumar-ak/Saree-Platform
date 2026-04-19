@@ -60,6 +60,23 @@ function formatPlacedAt(order) {
   }).format(new Date(timestamp))
 }
 
+function ChevronIcon({ className = '' }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M6 8l4 4 4-4" />
+    </svg>
+  )
+}
+
 function buildGroupedOrders(orders) {
   const sortedOrders = [...orders].sort((a, b) => {
     const timestampDiff = getOrderTimestamp(b) - getOrderTimestamp(a)
@@ -216,16 +233,15 @@ export default function AdminOrders() {
                     {formatOrderDateHeading(group.dateKey)}
                   </p>
                   <p className="mt-1 text-xs text-stone-500 sm:text-sm">
-                    {group.orders.length} {group.orders.length === 1 ? 'order' : 'orders'} - newest to oldest
+                    {group.orders.length} {group.orders.length === 1 ? 'order' : 'orders'}
                   </p>
                 </div>
                 <span
-                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-600 transition ${
+                  className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#f5f5f4_100%)] text-stone-600 shadow-sm transition ${
                     isCollapsed ? '' : 'rotate-180'
                   }`}
-                  aria-hidden="true"
                 >
-                  v
+                  <ChevronIcon className="h-4 w-4" />
                 </span>
               </button>
 
@@ -301,28 +317,29 @@ function OrderCard({
             </p>
             <StatusPill status={order.orderStatus} />
           </div>
-          <p className="mt-2 text-xs font-medium text-stone-500">
-            Placed {formatPlacedAt(order)}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700">
-              {order.address?.fullName || 'Unknown customer'}
-            </span>
-            <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+              {formatPlacedAt(order)}
             </span>
             <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
               Rs. {Number(order.totalAmount).toLocaleString('en-IN')}
             </span>
           </div>
+          <div className="mt-2 flex items-center gap-2 border-t border-stone-100 pt-2">
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-stone-400">
+              Quick details
+            </span>
+          </div>
         </div>
         <span
-          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-sm font-semibold text-stone-600 transition ${
+          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#f5f5f4_100%)] text-stone-600 shadow-sm transition ${
             isExpanded ? 'rotate-180' : ''
           }`}
-          aria-hidden="true"
         >
-          v
+          <ChevronIcon className="h-4 w-4" />
         </span>
       </button>
 
@@ -342,7 +359,7 @@ function OrderCard({
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
-              Placed {formatPlacedAt(order)}
+              {formatPlacedAt(order)}
             </span>
             <span className="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700">
               {order.address?.fullName || 'Unknown customer'}

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: saree-platform-api
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
