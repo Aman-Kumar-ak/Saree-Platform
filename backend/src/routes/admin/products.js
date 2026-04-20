@@ -1,10 +1,13 @@
 import { Router } from "express";
+import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
+import { getConfig } from "../../config/env.js";
 import { Category } from "../../models/Category.js";
 import { Product } from "../../models/Product.js";
 import { slugify } from "../../lib/slugify.js";
 
 export const adminProductsRouter = Router();
+let tagBackfillPromise = null;
 
 async function uniqueProductSlug(base) {
   let s = slugify(base);
@@ -14,6 +17,120 @@ async function uniqueProductSlug(base) {
     s = `${slugify(base)}-${n}`;
   }
   return s;
+}
+
+async function uniqueProductTagId(baseName) {
+  const cleaned = slugify(baseName).replace(/-/g, "").toUpperCase();
+  const prefix = (cleaned.slice(0, 3) || "PRD").padEnd(3, "X");
+  let attempt = 0;
+  while (attempt < 50) {
+    const rand = Math.floor(100 + Math.random() * 900);
+    const tagId = `${prefix}-${Date.now().toString().slice(-6)}-${rand}`;
+    const exists = await Product.exists({ tagId }).exec();
+    if (!exists) return tagId;
+    attempt += 1;
+  }
+  throw new Error("Could not generate unique tag id");
+}
+
+async function backfillMissingProductTagIds() {
+  const docs = await Product.find({
+    $or: [
+      { tagId: { $exists: false } },
+      { tagId: null },
+      { tagId: "" },
+    ],
+  })
+    .select("_id name")
+    .lean()
+    .exec();
+
+  for (const doc of docs) {
+    const tagId = await uniqueProductTagId(doc.name || "product");
+    await Product.updateOne(
+      {
+        _id: doc._id,
+        $or: [
+          { tagId: { $exists: false } },
+          { tagId: null },
+          { tagId: "" },
+        ],
+      },
+      { $set: { tagId } }
+    ).exec();
+  }
+}
+
+async function ensureProductTagIdsReady() {
+  if (!tagBackfillPromise) {
+    tagBackfillPromise = backfillMissingProductTagIds().finally(() => {
+      tagBackfillPromise = null;
+    });
+  }
+  await tagBackfillPromise;
+}
+
+function ensureCloudinaryConfigured() {
+  const cfg = getConfig();
+  if (!cfg.cloudinaryCloudName || !cfg.cloudinaryApiKey || !cfg.cloudinaryApiSecret) {
+    return null;
+  }
+  cloudinary.config({
+    cloud_name: cfg.cloudinaryCloudName,
+    api_key: cfg.cloudinaryApiKey,
+    api_secret: cfg.cloudinaryApiSecret,
+  });
+  return cfg.cloudinaryCloudName;
+}
+
+function extractCloudinaryPublicId(url, expectedCloudName) {
+  const raw = String(url || "").trim();
+  if (!raw) return null;
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed.hostname.includes("res.cloudinary.com")) return null;
+
+  const path = parsed.pathname.replace(/^\/+/, "");
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length < 4) return null;
+  if (parts[0] !== expectedCloudName) return null;
+  const uploadIdx = parts.findIndex((part) => part === "upload");
+  if (uploadIdx === -1 || uploadIdx + 1 >= parts.length) return null;
+
+  let candidate = parts.slice(uploadIdx + 1);
+  if (candidate[0] && /^v\d+$/.test(candidate[0])) {
+    candidate = candidate.slice(1);
+  }
+  if (candidate.length === 0) return null;
+
+  const last = candidate[candidate.length - 1];
+  const dot = last.lastIndexOf(".");
+  if (dot > 0) {
+    candidate[candidate.length - 1] = last.slice(0, dot);
+  }
+  return candidate.join("/");
+}
+
+async function deleteCloudinaryImages(imageUrls) {
+  const cloudName = ensureCloudinaryConfigured();
+  if (!cloudName) return;
+  const publicIds = imageUrls
+    .map((url) => extractCloudinaryPublicId(url, cloudName))
+    .filter(Boolean);
+  for (const publicId of publicIds) {
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      invalidate: true,
+    });
+    if (result?.result === "ok" || result?.result === "not found") {
+      continue;
+    }
+    throw new Error(`Cloudinary delete failed for ${publicId}`);
+  }
 }
 
 adminProductsRouter.get("/", async (_req, res, next) => {
@@ -31,6 +148,7 @@ adminProductsRouter.get("/", async (_req, res, next) => {
 
 adminProductsRouter.post("/", async (req, res, next) => {
   try {
+    await ensureProductTagIdsReady();
     const name = String(req.body?.name ?? "").trim();
     if (!name) {
       res.status(400).json({ error: "name is required" });
@@ -66,9 +184,11 @@ adminProductsRouter.post("/", async (req, res, next) => {
       res.status(409).json({ error: "Slug already exists" });
       return;
     }
+    const tagId = await uniqueProductTagId(name);
     const doc = await Product.create({
       name,
       slug,
+      tagId,
       description,
       price,
       category: cat._id,
@@ -82,12 +202,22 @@ adminProductsRouter.post("/", async (req, res, next) => {
       .exec();
     res.status(201).json({ product: populated });
   } catch (err) {
+    if (err?.code === 11000) {
+      res.status(409).json({ error: "Duplicate value. Please try again." });
+      return;
+    }
+    if (err?.name === "ValidationError") {
+      const first = Object.values(err.errors ?? {})[0];
+      res.status(400).json({ error: first?.message || "Invalid product data" });
+      return;
+    }
     next(err);
   }
 });
 
 adminProductsRouter.put("/:id", async (req, res, next) => {
   try {
+    await ensureProductTagIdsReady();
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
       res.status(400).json({ error: "Invalid id" });
@@ -145,6 +275,9 @@ adminProductsRouter.put("/:id", async (req, res, next) => {
       doc.images = req.body.images.map((u) => String(u).trim()).filter(Boolean);
     }
     if (req.body.isActive != null) doc.isActive = Boolean(req.body.isActive);
+    if (!doc.tagId || !String(doc.tagId).trim()) {
+      doc.tagId = await uniqueProductTagId(doc.name || "product");
+    }
     await doc.save();
     const populated = await Product.findById(doc._id)
       .populate("category", "name slug")
@@ -152,6 +285,15 @@ adminProductsRouter.put("/:id", async (req, res, next) => {
       .exec();
     res.json({ product: populated });
   } catch (err) {
+    if (err?.code === 11000) {
+      res.status(409).json({ error: "Duplicate value. Please try again." });
+      return;
+    }
+    if (err?.name === "ValidationError") {
+      const first = Object.values(err.errors ?? {})[0];
+      res.status(400).json({ error: first?.message || "Invalid product data" });
+      return;
+    }
     next(err);
   }
 });
@@ -163,11 +305,13 @@ adminProductsRouter.delete("/:id", async (req, res, next) => {
       res.status(400).json({ error: "Invalid id" });
       return;
     }
-    const doc = await Product.findByIdAndDelete(id).exec();
+    const doc = await Product.findById(id).exec();
     if (!doc) {
       res.status(404).json({ error: "Not found" });
       return;
     }
+    await deleteCloudinaryImages(Array.isArray(doc.images) ? doc.images : []);
+    await Product.deleteOne({ _id: doc._id }).exec();
     res.json({ ok: true });
   } catch (err) {
     next(err);

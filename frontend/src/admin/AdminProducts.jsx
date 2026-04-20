@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import LoadingState from '../components/LoadingState.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 
 export default function AdminProducts() {
   const { authFetch } = useAuth()
+  const { addToast } = useToast()
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,6 +21,7 @@ export default function AdminProducts() {
   const [images, setImages] = useState([])
   const [busy, setBusy] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState(null)
@@ -124,6 +127,8 @@ export default function AdminProducts() {
         .filter((item) => item.kind === 'local')
         .forEach((item) => URL.revokeObjectURL(item.previewUrl))
       setImages([])
+      setCreateOpen(false)
+      addToast('Product created successfully.', 'success', 2500)
       await load()
     } catch (err) {
       setError(err.message)
@@ -134,16 +139,22 @@ export default function AdminProducts() {
 
   async function remove() {
     if (!deleteTarget) return
-    const r = await authFetch(`/api/admin/products/${deleteTarget._id}`, {
-      method: 'DELETE',
-    })
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}))
-      setError(d.error || 'Delete failed')
-      return
+    setDeleteBusy(true)
+    try {
+      const r = await authFetch(`/api/admin/products/${deleteTarget._id}`, {
+        method: 'DELETE',
+      })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        setError(d.error || 'Delete failed')
+        return
+      }
+      setDeleteTarget(null)
+      await load()
+      addToast('Product deleted successfully.', 'success', 2500)
+    } finally {
+      setDeleteBusy(false)
     }
-    setDeleteTarget(null)
-    await load()
   }
 
   function openEdit(product) {
@@ -463,8 +474,11 @@ export default function AdminProducts() {
             : ''
         }
         confirmLabel="Delete"
+        busy={deleteBusy}
         onConfirm={remove}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => {
+          if (!deleteBusy) setDeleteTarget(null)
+        }}
       />
 
       <EditProductDialog

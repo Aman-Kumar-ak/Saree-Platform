@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useToast } from '../context/ToastContext.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import LoadingState from '../components/LoadingState.jsx'
 
 export default function AdminCategories() {
   const { authFetch } = useAuth()
+  const { addToast } = useToast()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -14,6 +16,7 @@ export default function AdminCategories() {
   const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
@@ -55,6 +58,7 @@ export default function AdminCategories() {
       setName('')
       setDescription('')
       setCreateOpen(false)
+      addToast('Category created successfully.', 'success', 2500)
       await load()
     } catch (e2) {
       setError(e2.message)
@@ -100,16 +104,22 @@ export default function AdminCategories() {
 
   async function remove() {
     if (!deleteTarget) return
-    const r = await authFetch(`/api/admin/categories/${deleteTarget._id}`, {
-      method: 'DELETE',
-    })
-    const d = await r.json().catch(() => ({}))
-    if (!r.ok) {
-      setError(d.error || 'Delete failed')
-      return
+    setDeleteBusy(true)
+    try {
+      const r = await authFetch(`/api/admin/categories/${deleteTarget._id}`, {
+        method: 'DELETE',
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        setError(d.error || 'Delete failed')
+        return
+      }
+      setDeleteTarget(null)
+      await load()
+      addToast('Category deleted successfully.', 'success', 2500)
+    } finally {
+      setDeleteBusy(false)
     }
-    setDeleteTarget(null)
-    await load()
   }
 
   if (loading) {
@@ -264,8 +274,11 @@ export default function AdminCategories() {
             : ''
         }
         confirmLabel="Delete"
+        busy={deleteBusy}
         onConfirm={remove}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => {
+          if (!deleteBusy) setDeleteTarget(null)
+        }}
       />
     </div>
   )

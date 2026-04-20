@@ -1,11 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import LoginPromptModal from '../components/LoginPromptModal.jsx'
 import LoadingState from '../components/LoadingState.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Profile() {
   const { user, ready, logout } = useAuth()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   useEffect(() => {
     document.title = 'My Profile · Shop'
@@ -68,7 +70,7 @@ export default function Profile() {
             </Link>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="group flex min-h-[68px] items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 text-left text-sm font-semibold text-red-700 transition active:scale-[0.99] hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-100 hover:shadow-md"
             >
               <span>
@@ -80,6 +82,17 @@ export default function Profile() {
           </div>
         </section>
 
+        <ConfirmDialog
+          open={showLogoutConfirm}
+          title="Log out?"
+          message="You will be signed out of your account on this device."
+          confirmLabel="Log out"
+          onConfirm={() => {
+            setShowLogoutConfirm(false)
+            logout()
+          }}
+          onClose={() => setShowLogoutConfirm(false)}
+        />
       </div>
     </main>
   )

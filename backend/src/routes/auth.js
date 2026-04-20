@@ -49,6 +49,14 @@ authRouter.post("/firebase", async (req, res, next) => {
     const name = req.body?.name != null ? String(req.body.name) : undefined;
     const signup = Boolean(req.body?.signup);
 
+    if (signup) {
+      const existing = await User.findOne({ phone: phone10 }).select("_id").lean().exec();
+      if (existing) {
+        res.status(409).json({ error: "User already exists. Please login instead." });
+        return;
+      }
+    }
+
     if (signup && (!name || !String(name).trim())) {
       res.status(400).json({ error: "Name is required for sign up" });
       return;
@@ -118,6 +126,15 @@ authRouter.post("/validate-phone", async (req, res) => {
       const user = await User.findOne({ phone: n }).exec();
       if (!user) {
         res.status(404).json({ ok: false, error: "No user found" });
+        return;
+      }
+    } else if (mode === "signup") {
+      const existing = await User.findOne({ phone: n }).select("_id").lean().exec();
+      if (existing) {
+        res.status(409).json({
+          ok: false,
+          error: "User already exists. Please login instead.",
+        });
         return;
       }
     }
