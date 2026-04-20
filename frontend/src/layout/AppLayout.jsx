@@ -234,6 +234,29 @@ export function AppLayout() {
         <Outlet />
       </div>
 
+      <footer className="px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-10 sm:pb-24">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-stone-500">
+          <Link
+            to="/privacy-policy"
+            className="rounded-full px-2 py-1 text-stone-600 no-underline hover:bg-stone-100"
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            className="rounded-full px-2 py-1 text-stone-600 no-underline hover:bg-stone-100"
+          >
+            Terms
+          </Link>
+          <Link
+            to="/return-refund"
+            className="rounded-full px-2 py-1 text-stone-600 no-underline hover:bg-stone-100"
+          >
+            Return & Refund
+          </Link>
+        </div>
+      </footer>
+
       <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-50 flex justify-center px-4 sm:bottom-[calc(env(safe-area-inset-bottom)+1rem)]">
         <div className="flex items-end gap-1 rounded-full border border-stone-700/60 bg-stone-950/95 px-2 py-1.5 shadow-2xl shadow-black/20 backdrop-blur-xl sm:gap-0.5 sm:px-2 sm:py-1.5">
           {capsuleItems.map((item) => (

@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 
 const tab =
-  'relative inline-flex min-h-[44px] items-center justify-center rounded-full px-4 py-2 text-sm font-semibold no-underline [-webkit-tap-highlight-color:transparent]'
+  'relative inline-flex min-h-[44px] items-center justify-center rounded-full px-4 py-2 text-sm font-semibold no-underline transform-gpu transition-[color,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform [-webkit-tap-highlight-color:transparent]'
 
 export default function AdminShell() {
-  const { user, ready, logout } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   useEffect(() => {
@@ -20,22 +19,10 @@ export default function AdminShell() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!ready) return
-    if (!user) {
-      const from = `${location.pathname}${location.search || ''}` || '/admin/orders'
-      navigate('/login', { replace: true, state: { from } })
-      return
-    }
-    if (user.role !== 'admin') {
-      navigate('/', { replace: true })
-    }
-  }, [ready, user, navigate, location.pathname, location.search])
-
-  if (!ready || !user || user.role !== 'admin') {
+  if (!user) {
     return (
       <div className="flex min-h-[40svh] items-center justify-center bg-[#fafaf9] px-4 text-sm text-stone-600">
-        Checking access…
+        Checking access...
       </div>
     )
   }
@@ -81,26 +68,68 @@ export default function AdminShell() {
           <NavLink
             to="/admin/orders"
             className={({ isActive }) =>
-              `${tab} shrink-0 ${isActive ? 'bg-white text-stone-950 shadow-md' : 'bg-transparent text-stone-200 hover:bg-white/10 hover:text-white'}`
+              `${tab} shrink-0 ${
+                isActive
+                  ? 'min-w-[86px] scale-100 text-stone-950'
+                  : 'min-w-[86px] scale-[0.97] text-stone-200 hover:text-white'
+              }`
             }
           >
-            Orders
+            {({ isActive }) => (
+              <>
+                <span
+                  aria-hidden
+                  className={`absolute inset-0 rounded-full bg-white shadow-md transform-gpu transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    isActive ? 'scale-100 opacity-100' : 'scale-[0.9] opacity-0'
+                  }`}
+                />
+                <span className="relative z-10">Orders</span>
+              </>
+            )}
           </NavLink>
           <NavLink
             to="/admin/products"
             className={({ isActive }) =>
-              `${tab} shrink-0 ${isActive ? 'bg-white text-stone-950 shadow-md' : 'bg-transparent text-stone-200 hover:bg-white/10 hover:text-white'}`
+              `${tab} shrink-0 ${
+                isActive
+                  ? 'min-w-[90px] scale-100 text-stone-950'
+                  : 'min-w-[90px] scale-[0.97] text-stone-200 hover:text-white'
+              }`
             }
           >
-            Products
+            {({ isActive }) => (
+              <>
+                <span
+                  aria-hidden
+                  className={`absolute inset-0 rounded-full bg-white shadow-md transform-gpu transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    isActive ? 'scale-100 opacity-100' : 'scale-[0.9] opacity-0'
+                  }`}
+                />
+                <span className="relative z-10">Products</span>
+              </>
+            )}
           </NavLink>
           <NavLink
             to="/admin/categories"
             className={({ isActive }) =>
-              `${tab} shrink-0 ${isActive ? 'bg-white text-stone-950 shadow-md' : 'bg-transparent text-stone-200 hover:bg-white/10 hover:text-white'}`
+              `${tab} shrink-0 ${
+                isActive
+                  ? 'min-w-[98px] scale-100 text-stone-950'
+                  : 'min-w-[98px] scale-[0.97] text-stone-200 hover:text-white'
+              }`
             }
           >
-            Categories
+            {({ isActive }) => (
+              <>
+                <span
+                  aria-hidden
+                  className={`absolute inset-0 rounded-full bg-white shadow-md transform-gpu transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    isActive ? 'scale-100 opacity-100' : 'scale-[0.9] opacity-0'
+                  }`}
+                />
+                <span className="relative z-10">Categories</span>
+              </>
+            )}
           </NavLink>
         </nav>
       </div>

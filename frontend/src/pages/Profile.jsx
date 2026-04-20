@@ -29,70 +29,57 @@ export default function Profile() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:pb-12">
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
-          My Profile
-        </h1>
-        <p className="mt-1 text-sm text-stone-600">
-          Manage your account and quick links.
-        </p>
-      </div>
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-8 sm:px-6 sm:py-8 lg:pb-10">
+      <div className="space-y-4">
+        <section className="overflow-hidden rounded-3xl border border-stone-200 bg-gradient-to-br from-stone-950 via-stone-900 to-stone-800 p-5 text-stone-50 shadow-xl shadow-stone-900/10 sm:p-7">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{user.name}</h1>
+            <p className="text-sm font-medium text-stone-300 sm:text-base">{user.phone}</p>
+          </div>
+        </section>
 
-      <div className="mt-8 space-y-4">
-        <section className="rounded-3xl border border-stone-200 bg-stone-50 p-5 shadow-sm ring-1 ring-black/[0.02]">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Quick Update
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <section className="rounded-3xl border border-stone-200 bg-stone-50 p-4 shadow-sm ring-1 ring-black/[0.02] sm:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+              Quick Actions
+            </p>
+            <span className="hidden text-xs text-stone-500 sm:inline">Tap to open</span>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <Link
               to="/orders"
-              className="flex min-h-[60px] items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 no-underline transition active:scale-[0.99] hover:border-stone-300 hover:shadow-sm"
+              className="group flex min-h-[68px] items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 no-underline transition active:scale-[0.99] hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md"
             >
-              <span>My Orders</span>
-              <span className="text-stone-500">Open</span>
+              <span>
+                <span className="block text-xs uppercase tracking-wide text-stone-500">Orders</span>
+                <span className="mt-1 block">My Orders</span>
+              </span>
+              <span className="text-stone-500 transition group-hover:text-stone-700">Open</span>
             </Link>
             <Link
               to="/address"
-              className="flex min-h-[60px] items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 no-underline transition active:scale-[0.99] hover:border-stone-300 hover:shadow-sm"
+              className="group flex min-h-[68px] items-center justify-between rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 no-underline transition active:scale-[0.99] hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md"
             >
-              <span>Addresses</span>
-              <span className="text-stone-500">Open</span>
+              <span>
+                <span className="block text-xs uppercase tracking-wide text-stone-500">Address</span>
+                <span className="mt-1 block">Saved Addresses</span>
+              </span>
+              <span className="text-stone-500 transition group-hover:text-stone-700">Open</span>
             </Link>
             <button
               type="button"
               onClick={logout}
-              className="flex min-h-[60px] items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition active:scale-[0.99] hover:border-red-300 hover:bg-red-100"
+              className="group flex min-h-[68px] items-center justify-between rounded-2xl border border-red-200 bg-red-50 px-4 text-left text-sm font-semibold text-red-700 transition active:scale-[0.99] hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-100 hover:shadow-md"
             >
-              <span>Log out</span>
-              <span className="text-red-500">Exit</span>
+              <span>
+                <span className="block text-xs uppercase tracking-wide text-red-400">Session</span>
+                <span className="mt-1 block">Log out</span>
+              </span>
+              <span className="text-red-500 transition group-hover:text-red-700">Exit</span>
             </button>
           </div>
         </section>
 
-        <div className="grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
-          <section className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm ring-1 ring-black/[0.02]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Account
-            </p>
-            <div className="mt-4 space-y-3">
-              <div>
-                <p className="text-[13px] font-medium text-stone-500">Name</p>
-                <p className="mt-1 text-lg font-semibold text-stone-900">{user.name}</p>
-              </div>
-              {user.email ? (
-                <div>
-                  <p className="text-[13px] font-medium text-stone-500">Email</p>
-                  <p className="mt-1 text-sm text-stone-700">{user.email}</p>
-                </div>
-              ) : null}
-              <div>
-                <p className="text-[13px] font-medium text-stone-500">Phone</p>
-                <p className="mt-1 text-sm text-stone-700">{user.phone}</p>
-              </div>
-            </div>
-          </section>
-        </div>
       </div>
     </main>
   )

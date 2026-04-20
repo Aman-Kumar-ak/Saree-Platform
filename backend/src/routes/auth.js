@@ -1,9 +1,15 @@
 import { Router } from "express";
 import { isFirebaseAdminConfigured, verifyFirebaseIdToken } from "../config/firebaseAdmin.js";
-import { normalizeIndiaPhone10 } from "../lib/phone.js";
+import { firebasePhoneTo10, normalizeIndiaPhone10 } from "../lib/phone.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { getConfig } from "../config/env.js";
 import { signUserToken } from "../services/authJwt.js";
+import {
+  assertAuthNotSuspended,
+  clearOtpVerifyFailures,
+  registerOtpSendAttempt,
+  registerOtpVerifyFailure,
+} from "../services/authThrottle.js";
 import { upsertUserFromFirebase } from "../services/upsertUserFromFirebase.js";
 import { User } from "../models/User.js";
 
@@ -34,6 +40,12 @@ authRouter.post("/firebase", async (req, res, next) => {
     }
 
     const decoded = await verifyFirebaseIdToken(idToken);
+    const phone10 = firebasePhoneTo10(decoded.phone_number);
+    if (!phone10) {
+      res.status(400).json({ error: "Phone number missing on token" });
+      return;
+    }
+    await assertAuthNotSuspended(phone10);
     const name = req.body?.name != null ? String(req.body.name) : undefined;
     const signup = Boolean(req.body?.signup);
 
@@ -44,6 +56,7 @@ authRouter.post("/firebase", async (req, res, next) => {
 
     // For login (not signup), require user to exist in database
     const user = await upsertUserFromFirebase(decoded, { name, loginOnly: !signup });
+    await clearOtpVerifyFailures(phone10);
 
     const token = signUserToken(user);
     res.json({
@@ -56,6 +69,13 @@ authRouter.post("/firebase", async (req, res, next) => {
       },
     });
   } catch (err) {
+    if (err.code === "AUTH_SUSPENDED") {
+      res.status(429).json({
+        error: err.message,
+        retryAfterSec: err.retryAfterSec ?? 0,
+      });
+      return;
+    }
     if (err.code === "NO_PHONE") {
       res.status(400).json({ error: err.message });
       return;
@@ -91,6 +111,7 @@ authRouter.post("/validate-phone", async (req, res) => {
       res.status(400).json({ ok: false, error: "Invalid phone number" });
       return;
     }
+    await assertAuthNotSuspended(n);
     
     // For login, check if user exists in database
     if (mode === "login") {
@@ -100,9 +121,40 @@ authRouter.post("/validate-phone", async (req, res) => {
         return;
       }
     }
+    await registerOtpSendAttempt(n);
     
     res.json({ ok: true, phone: n });
   } catch (err) {
+    if (err.code === "AUTH_SUSPENDED") {
+      res.status(429).json({
+        ok: false,
+        error: err.message,
+        retryAfterSec: err.retryAfterSec ?? 0,
+      });
+      return;
+    }
+    res.status(500).json({ ok: false, error: "Server error" });
+  }
+});
+
+authRouter.post("/otp-failure", async (req, res) => {
+  try {
+    const n = normalizeIndiaPhone10(req.body?.phone);
+    if (!n) {
+      res.status(400).json({ ok: false, error: "Invalid phone number" });
+      return;
+    }
+    await registerOtpVerifyFailure(n);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === "AUTH_SUSPENDED") {
+      res.status(429).json({
+        ok: false,
+        error: err.message,
+        retryAfterSec: err.retryAfterSec ?? 0,
+      });
+      return;
+    }
     res.status(500).json({ ok: false, error: "Server error" });
   }
 });

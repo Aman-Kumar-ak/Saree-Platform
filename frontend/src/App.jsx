@@ -14,6 +14,11 @@ import Addresses from './pages/Addresses.jsx'
 import Orders from './pages/Orders.jsx'
 import Wishlist from './pages/Wishlist.jsx'
 import Profile from './pages/Profile.jsx'
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx'
+import TermsOfService from './pages/TermsOfService.jsx'
+import ReturnRefundPolicy from './pages/ReturnRefundPolicy.jsx'
+import NotFound from './pages/NotFound.jsx'
+import RequireAdmin from './components/RequireAdmin.jsx'
 import { ToastContainer } from './components/ToastContainer.jsx'
 
 export default function App() {
@@ -31,13 +36,26 @@ export default function App() {
           <Route path="order/:orderNumber" element={<OrderConfirmation />} />
           <Route path="address" element={<Addresses />} />
           <Route path="orders" element={<Orders />} />
+          <Route path="privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="terms" element={<TermsOfService />} />
+          <Route path="return-refund" element={<ReturnRefundPolicy />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
-        <Route path="/admin" element={<AdminShell />}>
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminShell />
+            </RequireAdmin>
+          }
+        >
           <Route index element={<Navigate to="orders" replace />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="categories" element={<AdminCategories />} />
+          <Route path="*" element={<Navigate to="orders" replace />} />
         </Route>
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <ToastContainer />
     </>

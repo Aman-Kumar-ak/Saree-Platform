@@ -19,6 +19,12 @@ function optionalEnv(name) {
   return String(v).trim();
 }
 
+function parseBoolean(raw, fallback = false) {
+  if (raw === undefined || raw === "") return fallback;
+  const value = String(raw).trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
 function parsePort(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0 || n > 65535) {
@@ -32,9 +38,18 @@ function parsePort(value) {
  */
 function parseCorsOrigin() {
   const raw = optionalEnv("CORS_ORIGIN");
-  if (!raw) return true;
+  if (!raw) {
+    return [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:4173",
+      "http://127.0.0.1:4173",
+    ];
+  }
   const list = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  if (list.length === 0) return true;
+  if (list.length === 0) {
+    throw new Error("CORS_ORIGIN is set but empty. Add one or more allowed origins.");
+  }
   if (list.length === 1) return list[0];
   return list;
 }
@@ -70,6 +85,15 @@ function parseUploadMaxMb(raw) {
   return n;
 }
 
+function parseOptionalPositiveInt(raw, fallback, label) {
+  if (raw === undefined || raw === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+  return n;
+}
+
 let cached;
 
 export function getConfig() {
@@ -91,6 +115,75 @@ export function getConfig() {
   const cloudinaryApiKey = optionalEnv("CLOUDINARY_API_KEY");
   const cloudinaryApiSecret = optionalEnv("CLOUDINARY_API_SECRET");
   const uploadMaxMb = parseUploadMaxMb(optionalEnv("UPLOAD_MAX_MB"));
+  const authRateLimitWindowMs = parseOptionalPositiveInt(
+    optionalEnv("AUTH_RATE_LIMIT_WINDOW_MS"),
+    10 * 60 * 1000,
+    "AUTH_RATE_LIMIT_WINDOW_MS"
+  );
+  const authRateLimitMax = parseOptionalPositiveInt(
+    optionalEnv("AUTH_RATE_LIMIT_MAX"),
+    30,
+    "AUTH_RATE_LIMIT_MAX"
+  );
+  const apiRateLimitWindowMs = parseOptionalPositiveInt(
+    optionalEnv("API_RATE_LIMIT_WINDOW_MS"),
+    60 * 1000,
+    "API_RATE_LIMIT_WINDOW_MS"
+  );
+  const apiRateLimitMax = parseOptionalPositiveInt(
+    optionalEnv("API_RATE_LIMIT_MAX"),
+    240,
+    "API_RATE_LIMIT_MAX"
+  );
+  const adminRateLimitWindowMs = parseOptionalPositiveInt(
+    optionalEnv("ADMIN_RATE_LIMIT_WINDOW_MS"),
+    60 * 1000,
+    "ADMIN_RATE_LIMIT_WINDOW_MS"
+  );
+  const adminRateLimitMax = parseOptionalPositiveInt(
+    optionalEnv("ADMIN_RATE_LIMIT_MAX"),
+    120,
+    "ADMIN_RATE_LIMIT_MAX"
+  );
+  const requestJsonLimitKb = parseOptionalPositiveInt(
+    optionalEnv("REQUEST_JSON_LIMIT_KB"),
+    256,
+    "REQUEST_JSON_LIMIT_KB"
+  );
+  const requestUrlMaxLength = parseOptionalPositiveInt(
+    optionalEnv("REQUEST_URL_MAX_LENGTH"),
+    2048,
+    "REQUEST_URL_MAX_LENGTH"
+  );
+  const authOtpSendWindowMs = parseOptionalPositiveInt(
+    optionalEnv("AUTH_OTP_SEND_WINDOW_MS"),
+    10 * 60 * 1000,
+    "AUTH_OTP_SEND_WINDOW_MS"
+  );
+  const authOtpSendMax = parseOptionalPositiveInt(
+    optionalEnv("AUTH_OTP_SEND_MAX"),
+    4,
+    "AUTH_OTP_SEND_MAX"
+  );
+  const authOtpVerifyWindowMs = parseOptionalPositiveInt(
+    optionalEnv("AUTH_OTP_VERIFY_WINDOW_MS"),
+    2 * 60 * 1000,
+    "AUTH_OTP_VERIFY_WINDOW_MS"
+  );
+  const authOtpVerifyMax = parseOptionalPositiveInt(
+    optionalEnv("AUTH_OTP_VERIFY_MAX"),
+    5,
+    "AUTH_OTP_VERIFY_MAX"
+  );
+  const authOtpSuspendMs = parseOptionalPositiveInt(
+    optionalEnv("AUTH_OTP_SUSPEND_MS"),
+    2 * 60 * 1000,
+    "AUTH_OTP_SUSPEND_MS"
+  );
+  const corsAllowPrivateNetwork = parseBoolean(
+    optionalEnv("CORS_ALLOW_PRIVATE_NETWORK"),
+    false
+  );
 
   cached = {
     port,
@@ -107,6 +200,20 @@ export function getConfig() {
     cloudinaryApiKey,
     cloudinaryApiSecret,
     uploadMaxMb,
+    authRateLimitWindowMs,
+    authRateLimitMax,
+    apiRateLimitWindowMs,
+    apiRateLimitMax,
+    adminRateLimitWindowMs,
+    adminRateLimitMax,
+    requestJsonLimitKb,
+    requestUrlMaxLength,
+    authOtpSendWindowMs,
+    authOtpSendMax,
+    authOtpVerifyWindowMs,
+    authOtpVerifyMax,
+    authOtpSuspendMs,
+    corsAllowPrivateNetwork,
   };
   return cached;
 }
