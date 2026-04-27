@@ -1,11 +1,13 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import AdminCategories from './admin/AdminCategories.jsx'
+import AdminAdvertisements from './admin/AdminAdvertisements.jsx'
 import AdminOrders from './admin/AdminOrders.jsx'
 import AdminProducts from './admin/AdminProducts.jsx'
 import AdminShell from './admin/AdminShell.jsx'
 import { AppLayout } from './layout/AppLayout.jsx'
 import Cart from './pages/Cart.jsx'
 import Checkout from './pages/Checkout.jsx'
+import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import OrderConfirmation from './pages/OrderConfirmation.jsx'
 import Shop from './pages/Shop.jsx'
@@ -27,7 +29,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<AppLayout />}>
-          <Route index element={<Shop />} />
+          <Route index element={<Home />} />
+          <Route path="shop" element={<Shop />} />
           <Route path="product/:slug" element={<ProductDetail />} />
           <Route path="cart" element={<Cart />} />
           <Route path="wishlist" element={<Wishlist />} />
@@ -49,11 +52,12 @@ export default function App() {
             </RequireAdmin>
           }
         >
-          <Route index element={<Navigate to="orders" replace />} />
+          <Route index element={<Navigate to="/admin/orders" replace />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="categories" element={<AdminCategories />} />
-          <Route path="*" element={<Navigate to="orders" replace />} />
+          <Route path="advertisements" element={<AdminAdvertisements />} />
+          <Route path="*" element={<Navigate to="/admin/orders" replace />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import MobileBackButton from '../components/MobileBackButton.jsx'
 import LoadingState from '../components/LoadingState.jsx'
+import { ProductRail } from '../components/ProductRail.jsx'
 import { WishlistButton } from '../components/WishlistButton.jsx'
 import { apiUrl } from '../config/api.js'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { recordRecentlyViewed, readRecentlyViewed } from '../lib/recentlyViewed.js'
 
 function getAmbientColor(image) {
   try {
@@ -181,6 +183,10 @@ export default function ProductDetail() {
   const touchLongPressRef = useRef(false)
   const suppressNextClickRef = useRef(false)
   const [product, setProduct] = useState(null)
+  const [similarProducts, setSimilarProducts] = useState([])
+  const [recentlyViewed, setRecentlyViewed] = useState(() =>
+    readRecentlyViewed().slice(0, 8)
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [qty, setQty] = useState(1)
@@ -237,6 +243,34 @@ export default function ProductDetail() {
     }
   }, [slug])
 
+  useEffect(() => {
+    if (!slug) return undefined
+    let cancelled = false
+
+    async function loadRecommendations() {
+      try {
+        const response = await fetch(
+          apiUrl(`/api/products/${encodeURIComponent(slug)}/recommendations?limit=8`)
+        )
+        if (!response.ok) throw new Error('Recommendations request failed')
+        const data = await response.json()
+        if (!cancelled) {
+          setSimilarProducts(data.recommendations ?? [])
+        }
+      } catch {
+        if (!cancelled) {
+          setSimilarProducts([])
+        }
+      }
+    }
+
+    loadRecommendations()
+
+    return () => {
+      cancelled = true
+    }
+  }, [slug])
+
   const maxQty =
     product && typeof product.stock === 'number'
       ? Math.min(99, Math.max(0, product.stock))
@@ -259,6 +293,18 @@ export default function ProductDetail() {
       const title = import.meta.env.VITE_APP_TITLE ?? ''
       document.title = title ? `${title} \u00b7 Shop` : 'Shop'
     }
+  }, [product])
+
+  useEffect(() => {
+    if (!product?._id) return
+    const id = window.requestAnimationFrame(() => {
+      const nextItems = recordRecentlyViewed(product)
+      setRecentlyViewed(
+        nextItems.filter((item) => String(item._id) !== String(product._id)).slice(0, 8)
+      )
+    })
+
+    return () => window.cancelAnimationFrame(id)
   }, [product])
 
   useEffect(() => {
@@ -302,8 +348,8 @@ export default function ProductDetail() {
 
   if (error || !product) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 pb-24 pt-12 sm:px-6 sm:pb-12 lg:pb-16">
-        <MobileBackButton to="/" label="Back to shop" />
+    <main className="mx-auto w-full max-w-[1600px] px-4 py-8 pb-24 pt-12 sm:px-6 sm:pb-12 lg:pb-16">
+        <MobileBackButton to="/shop" label="Back to shop" />
         <p className="text-sm text-stone-600">{error || 'Product not found.'}</p>
       </main>
     )
@@ -497,7 +543,7 @@ export default function ProductDetail() {
 
   return (
     <main
-      className="relative mx-auto w-full max-w-7xl overflow-hidden px-4 pb-[max(6rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-12 sm:pt-8 lg:pb-16"
+      className="relative mx-auto w-full max-w-[1600px] overflow-hidden px-4 pb-[max(6rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-12 sm:pt-8 lg:pb-16"
       style={{ '--ambient-rgb': ambientColor }}
     >
       <div
@@ -510,7 +556,7 @@ export default function ProductDetail() {
       />
 
       <div className="mb-1 flex justify-start sm:hidden">
-        <MobileBackButton to="/" label="Back to shop" variant="inline" />
+        <MobileBackButton to="/shop" label="Back to shop" variant="inline" />
       </div>
 
       <div className="mt-2 grid gap-6 sm:mt-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] lg:items-start lg:gap-10">
@@ -635,7 +681,7 @@ export default function ProductDetail() {
             {category?.slug ? (
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500 sm:text-[13px]">
                 <Link
-                  to={`/?category=${encodeURIComponent(category.slug)}`}
+                  to={`/shop?category=${encodeURIComponent(category.slug)}`}
                   className="inline-flex rounded-full bg-stone-100 px-3 py-1 text-stone-700 no-underline transition [-webkit-tap-highlight-color:transparent] active:scale-[0.98] sm:hover:bg-stone-200/80"
                 >
                   {category.name}
@@ -722,6 +768,26 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+
+      <section className="mt-10 sm:mt-12">
+        <ProductRail
+          title="Similar products you may love"
+          description="More styles with a close look, feel, and price range so the next good option is easy to discover."
+          products={similarProducts}
+          actionHref={category?.slug ? `/shop?category=${encodeURIComponent(category.slug)}` : '/shop'}
+          actionLabel="See more like this"
+        />
+      </section>
+
+      <section className="mt-10 sm:mt-12">
+        <ProductRail
+          title="Recently viewed"
+          description="Quick access to the products you looked at recently, so it's easy to compare and come back."
+          products={recentlyViewed}
+          actionHref="/shop"
+          actionLabel="Continue browsing"
+        />
+      </section>
 
       <ImageViewerModal open={viewerOpen} src={imageSrc} alt={product.name} onClose={closeViewer} />
     </main>

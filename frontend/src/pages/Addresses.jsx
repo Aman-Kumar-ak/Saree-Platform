@@ -165,7 +165,7 @@ export default function Addresses() {
   }
 
   return (
-    <main className="relative mx-auto w-full max-w-6xl px-4 py-6 pb-28 sm:px-6 sm:py-8 sm:pb-16 lg:pb-12">
+    <main className="relative mx-auto w-full max-w-[1600px] px-4 py-6 pb-28 sm:px-6 sm:py-8 sm:pb-16 lg:pb-12">
       <div className="absolute inset-x-4 top-0 -z-10 h-40 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,_rgba(28,25,23,0.08),_transparent_55%),radial-gradient(circle_at_top_right,_rgba(168,162,158,0.18),_transparent_45%)] blur-2xl sm:inset-x-6" />
 
       <section className="overflow-hidden rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm ring-1 ring-black/[0.02] sm:p-6">

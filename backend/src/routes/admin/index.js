@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../../middleware/requireAuth.js";
+import { adminAdvertisementsRouter } from "./advertisements.js";
 import { adminCategoriesRouter } from "./categories.js";
 import { adminOrdersRouter } from "./orders.js";
 import { adminProductsRouter } from "./products.js";
@@ -12,4 +13,5 @@ adminRouter.use(requireAuth, requireAdmin);
 adminRouter.use("/categories", adminCategoriesRouter);
 adminRouter.use("/products", adminProductsRouter);
 adminRouter.use("/orders", adminOrdersRouter);
+adminRouter.use("/advertisements", adminAdvertisementsRouter);
 adminRouter.use("/upload", adminUploadRouter);

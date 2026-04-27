@@ -14,7 +14,8 @@ export function AppLayout() {
   const headerVisibleRef = useRef(true)
 
   const path = location.pathname
-  const isHome = path === '/'
+  const isHome =
+    path === '/' || path.startsWith('/shop') || path.startsWith('/product/')
   const isCart = path.startsWith('/cart') || path.startsWith('/checkout')
   const isWishlist = path.startsWith('/wishlist')
   const isOrders = path.startsWith('/orders')
@@ -133,8 +134,19 @@ export function AppLayout() {
   ]
 
   useEffect(() => {
-    document.title = title ? `${title} \u00b7 Shop` : 'Shop'
-  }, [title])
+    const viewTitle = isCart
+      ? 'Cart'
+      : isWishlist
+        ? 'Wishlist'
+        : isOrders
+          ? 'Orders'
+          : isProfile
+            ? 'Profile'
+            : isHome
+              ? 'Shop'
+              : 'Shop'
+    document.title = title ? `${title} \u00b7 ${viewTitle}` : viewTitle
+  }, [isCart, isHome, isOrders, isProfile, isWishlist, title])
 
   useEffect(() => {
     function updateHeaderVisibility() {
@@ -190,7 +202,7 @@ export function AppLayout() {
           showHeader ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        <div className="relative mx-auto grid h-14 max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-16 sm:px-6">
+        <div className="relative mx-auto grid h-14 max-w-[1600px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-16 sm:px-6">
           <Link
             to="/"
             className="justify-self-start text-sm font-medium tracking-tight text-stone-700 no-underline opacity-0 pointer-events-none sm:text-base"
@@ -235,7 +247,7 @@ export function AppLayout() {
       </div>
 
       <footer className="px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-10 sm:pb-24">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-stone-500">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-stone-500">
           <Link
             to="/privacy-policy"
             className="rounded-full px-2 py-1 text-stone-600 no-underline hover:bg-stone-100"

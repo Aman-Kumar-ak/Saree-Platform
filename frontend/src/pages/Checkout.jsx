@@ -109,7 +109,7 @@ export default function Checkout() {
 
   if (itemCount === 0) {
     return (
-      <main className="mx-auto w-full max-w-6xl px-4 pt-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6">
+    <main className="mx-auto w-full max-w-[1600px] px-4 pt-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6">
         <div className="mb-1 flex justify-start sm:hidden">
           <MobileBackButton to="/" label="Back to shop" variant="inline" />
         </div>
@@ -119,7 +119,7 @@ export default function Checkout() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg px-4 pt-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-[max(7.5rem,env(safe-area-inset-bottom))] lg:max-w-6xl">
+    <main className="mx-auto w-full max-w-lg px-4 pt-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 sm:pb-[max(7.5rem,env(safe-area-inset-bottom))] lg:max-w-[1600px]">
       <div className="mb-1 flex justify-start sm:hidden">
         <MobileBackButton to="/cart" label="Back to cart" variant="inline" />
       </div>

@@ -1,34 +1,152 @@
 import { Router } from "express";
 import mongoose from "mongoose";
-import { Category } from "../models/Category.js";
+import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
+import { resolveProductQueryOptions } from "../lib/productQuery.js";
 
 export const productsRouter = Router();
 
-productsRouter.get("/", async (req, res, next) => {
-  try {
-    const { category: categorySlug } = req.query;
-    const filter = { isActive: true };
-    if (categorySlug && typeof categorySlug === "string" && categorySlug.trim()) {
-      const cat = await Category.findOne({
-        slug: categorySlug.trim().toLowerCase(),
-        isActive: true,
-      })
-        .select("_id")
-        .lean()
-        .exec();
-      if (!cat) {
-        res.json({ products: [] });
-        return;
-      }
-      filter.category = cat._id;
-    }
-    const products = await Product.find(filter)
+async function findProductBySlugOrId(slugOrId) {
+  if (mongoose.isValidObjectId(slugOrId)) {
+    return Product.findById(slugOrId)
       .populate("category", "name slug")
-      .sort({ createdAt: -1 })
       .lean()
       .exec();
-    res.json({ products });
+  }
+
+  return Product.findOne({
+    slug: String(slugOrId).toLowerCase(),
+    isActive: true,
+  })
+    .populate("category", "name slug")
+    .lean()
+    .exec();
+}
+
+function normalizeValue(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function recommendationScore(baseProduct, candidate, popularityMap) {
+  let score = 0;
+
+  if (
+    baseProduct.category?._id &&
+    candidate.category?._id &&
+    String(baseProduct.category._id) === String(candidate.category._id)
+  ) {
+    score += 6;
+  }
+
+  if (
+    normalizeValue(baseProduct.material) &&
+    normalizeValue(baseProduct.material) === normalizeValue(candidate.material)
+  ) {
+    score += 4;
+  }
+
+  if (
+    normalizeValue(baseProduct.color) &&
+    normalizeValue(baseProduct.color) === normalizeValue(candidate.color)
+  ) {
+    score += 3;
+  }
+
+  const basePrice = Number(baseProduct.price) || 0;
+  const candidatePrice = Number(candidate.price) || 0;
+  const priceGap = Math.abs(candidatePrice - basePrice);
+  if (basePrice > 0) {
+    const ratio = priceGap / basePrice;
+    if (ratio <= 0.15) score += 3;
+    else if (ratio <= 0.35) score += 2;
+    else if (ratio <= 0.55) score += 1;
+  }
+
+  if ((candidate.stock ?? 0) > 0) {
+    score += 1;
+  }
+
+  score += Math.min(4, popularityMap.get(String(candidate._id)) ?? 0);
+
+  return score;
+}
+
+productsRouter.get("/", async (req, res, next) => {
+  try {
+    const resolved = await resolveProductQueryOptions(req.query);
+
+    let query = Product.find(resolved.mongoFilter)
+      .populate("category", "name slug")
+      .sort(resolved.sortSpec)
+      .lean();
+
+    if (resolved.limit) {
+      query = query.limit(resolved.limit);
+    }
+
+    const products = await query.exec();
+    res.json({
+      products,
+      applied: resolved.applied,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+productsRouter.get("/:slugOrId/recommendations", async (req, res, next) => {
+  try {
+    const { slugOrId } = req.params;
+    const limit = Math.max(1, Math.min(12, Number(req.query.limit) || 8));
+    const product = await findProductBySlugOrId(slugOrId);
+
+    if (!product) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const [candidates, popularityRows] = await Promise.all([
+      Product.find({
+        isActive: true,
+        _id: { $ne: product._id },
+        stock: { $gt: 0 },
+      })
+        .populate("category", "name slug")
+        .lean()
+        .exec(),
+      Order.aggregate([
+        {
+          $match: {
+            orderStatus: { $ne: "cancelled" },
+          },
+        },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.productId",
+            quantitySold: { $sum: "$items.quantity" },
+          },
+        },
+      ]),
+    ]);
+
+    const popularityMap = new Map(
+      popularityRows.map((row) => [String(row._id), Number(row.quantitySold) || 0])
+    );
+
+    const recommendations = candidates
+      .map((candidate) => ({
+        ...candidate,
+        _score: recommendationScore(product, candidate, popularityMap),
+      }))
+      .sort((left, right) => {
+        if (right._score !== left._score) return right._score - left._score;
+        return new Date(right.updatedAt) - new Date(left.updatedAt);
+      })
+      .slice(0, limit)
+      .map(({ _score, ...candidate }) => candidate);
+
+    res.json({ recommendations });
   } catch (err) {
     next(err);
   }
@@ -37,21 +155,7 @@ productsRouter.get("/", async (req, res, next) => {
 productsRouter.get("/:slugOrId", async (req, res, next) => {
   try {
     const { slugOrId } = req.params;
-    let doc;
-    if (mongoose.isValidObjectId(slugOrId)) {
-      doc = await Product.findById(slugOrId)
-        .populate("category", "name slug")
-        .lean()
-        .exec();
-    } else {
-      doc = await Product.findOne({
-        slug: slugOrId.toLowerCase(),
-        isActive: true,
-      })
-        .populate("category", "name slug")
-        .lean()
-        .exec();
-    }
+    const doc = await findProductBySlugOrId(slugOrId);
     if (!doc) {
       res.status(404).json({ error: "Not found" });
       return;

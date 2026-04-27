@@ -31,7 +31,7 @@ export default function Wishlist() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:pb-12">
+    <main className="mx-auto w-full max-w-[1600px] px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:pb-12">
       <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
         Wishlist
       </h1>

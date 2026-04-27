@@ -31,7 +31,7 @@ export default function Profile() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-8 sm:px-6 sm:py-8 lg:pb-10">
+    <main className="mx-auto w-full max-w-[1600px] px-4 py-6 pb-8 sm:px-6 sm:py-8 lg:pb-10">
       <div className="space-y-4">
         <section className="overflow-hidden rounded-3xl border border-stone-200 bg-gradient-to-br from-stone-950 via-stone-900 to-stone-800 p-5 text-stone-50 shadow-xl shadow-stone-900/10 sm:p-7">
           <div className="space-y-1">
