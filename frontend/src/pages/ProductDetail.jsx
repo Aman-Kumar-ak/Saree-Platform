@@ -100,8 +100,13 @@ function boostAmbientColor(rgb) {
 }
 
 function ImageViewerModal({ open, src, alt, onClose }) {
+  const [zoomed, setZoomed] = useState(false)
+
   useEffect(() => {
     if (!open) return undefined
+    const resetId = window.requestAnimationFrame(() => {
+      setZoomed(false)
+    })
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') onClose()
@@ -114,6 +119,7 @@ function ImageViewerModal({ open, src, alt, onClose }) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = overflow
+      window.cancelAnimationFrame(resetId)
     }
   }, [open, onClose])
 
@@ -121,6 +127,9 @@ function ImageViewerModal({ open, src, alt, onClose }) {
 
   return createPortal(
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${alt} image preview`}
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-md"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
@@ -130,23 +139,33 @@ function ImageViewerModal({ open, src, alt, onClose }) {
         type="button"
         onClick={onClose}
         aria-label="Close image preview"
-        className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/15 active:scale-[0.98]"
+        className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-[150] inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/12 text-white shadow-[0_16px_36px_rgba(0,0,0,0.28)] transition hover:bg-white/18 active:scale-[0.98]"
       >
         <span className="text-2xl leading-none">{String.fromCharCode(215)}</span>
       </button>
 
       <div className="flex h-full w-full items-center justify-center">
-        <div className="relative max-h-full max-w-[min(96vw,1100px)]">
+        <button
+          type="button"
+          aria-label={zoomed ? 'Zoom out image preview' : 'Zoom in image preview'}
+          aria-pressed={zoomed}
+          onClick={() => setZoomed((current) => !current)}
+          className="relative block max-h-[88svh] max-w-[min(96vw,1100px)] overflow-auto rounded-[28px] bg-transparent p-0 outline-none touch-manipulation [-webkit-tap-highlight-color:transparent]"
+        >
           <img
             src={src}
             alt={alt}
-            className="max-h-[88svh] w-auto max-w-full rounded-[28px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
+            className={`block rounded-[28px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-out ${
+              zoomed
+                ? 'w-[125vw] max-w-none cursor-zoom-out'
+                : 'max-h-[88svh] w-auto max-w-full cursor-zoom-in'
+            }`}
             draggable="false"
+            style={{
+              transformOrigin: 'center center',
+            }}
           />
-          <p className="mt-3 text-center text-xs uppercase tracking-[0.24em] text-white/70">
-            Tap outside or press Esc to close
-          </p>
-        </div>
+        </button>
       </div>
     </div>,
     document.body
@@ -179,6 +198,8 @@ export default function ProductDetail() {
   const imageRef = useRef(null)
   const imageAreaRef = useRef(null)
   const touchHoldTimerRef = useRef(null)
+  const zoomHintTimerRef = useRef(null)
+  const zoomHintUnmountTimerRef = useRef(null)
   const touchStartRef = useRef({ x: 0, y: 0 })
   const touchLongPressRef = useRef(false)
   const suppressNextClickRef = useRef(false)
@@ -191,8 +212,10 @@ export default function ProductDetail() {
   const [error, setError] = useState(null)
   const [qty, setQty] = useState(1)
   const [ambientRgb, setAmbientRgb] = useState('108, 120, 143')
-  const ambientColorRef = useRef('')
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [viewerOpen, setViewerOpen] = useState(false)
+  const [showZoomHint, setShowZoomHint] = useState(false)
+  const [zoomHintReady, setZoomHintReady] = useState(false)
   const [mouseZoom, setMouseZoom] = useState({
     active: false,
     x: 50,
@@ -308,34 +331,111 @@ export default function ProductDetail() {
   }, [product])
 
   useEffect(() => {
-    if (!product?.images?.[0]) return undefined
+    if (!product?._id) return undefined
 
-    const image = imageRef.current
-    if (!image || !image.complete) return undefined
-    if (ambientColorRef.current) return undefined
+    let cancelled = false
+    let hintShowId = 0
 
-    const schedule =
-      window.requestIdleCallback ??
-      ((callback) =>
-        window.setTimeout(
-          () =>
-            callback({
-              didTimeout: true,
-              timeRemaining: () => 0,
-            }),
-          0
-        ))
-    const cancel =
-      window.cancelIdleCallback ?? ((id) => window.clearTimeout(id))
+    const id = window.requestAnimationFrame(() => {
+      if (cancelled) return
 
-    const id = schedule(() => {
-      const nextAmbient = getAmbientColor(image)
-      ambientColorRef.current = nextAmbient
-      setAmbientRgb(nextAmbient)
+      setSelectedImageIndex(0)
+      setViewerOpen(false)
+      setShowZoomHint(true)
+      setZoomHintReady(false)
+      setMouseZoom({
+        active: false,
+        x: 50,
+        y: 50,
+      })
+      setTouchZoom({
+        active: false,
+        x: 50,
+        y: 50,
+        left: 0,
+        top: 0,
+      })
+      if (touchHoldTimerRef.current) {
+        window.clearTimeout(touchHoldTimerRef.current)
+        touchHoldTimerRef.current = null
+      }
+      touchLongPressRef.current = false
+      suppressNextClickRef.current = false
+
+      if (zoomHintTimerRef.current) {
+        window.clearTimeout(zoomHintTimerRef.current)
+        zoomHintTimerRef.current = null
+      }
+
+      if (zoomHintUnmountTimerRef.current) {
+        window.clearTimeout(zoomHintUnmountTimerRef.current)
+        zoomHintUnmountTimerRef.current = null
+      }
+
+      hintShowId = window.setTimeout(() => {
+        if (!cancelled) setZoomHintReady(true)
+      }, 16)
+
+      zoomHintTimerRef.current = window.setTimeout(() => {
+        if (cancelled) return
+        zoomHintTimerRef.current = null
+        setZoomHintReady(false)
+        zoomHintUnmountTimerRef.current = window.setTimeout(() => {
+          if (cancelled) return
+          setShowZoomHint(false)
+          zoomHintUnmountTimerRef.current = null
+        }, 220)
+      }, 5000)
     })
 
-    return () => cancel(id)
-  }, [product])
+    return () => {
+      cancelled = true
+      window.cancelAnimationFrame(id)
+      if (hintShowId) {
+        window.clearTimeout(hintShowId)
+      }
+      if (zoomHintTimerRef.current) {
+        window.clearTimeout(zoomHintTimerRef.current)
+        zoomHintTimerRef.current = null
+      }
+      if (zoomHintUnmountTimerRef.current) {
+        window.clearTimeout(zoomHintUnmountTimerRef.current)
+        zoomHintUnmountTimerRef.current = null
+      }
+    }
+  }, [product?._id])
+
+  useEffect(() => {
+    if (!showZoomHint) return undefined
+    if (!mouseZoom.active && !touchZoom.active) return undefined
+
+    const hideId = window.requestAnimationFrame(() => {
+      setZoomHintReady(false)
+    })
+
+    if (zoomHintTimerRef.current) {
+      window.clearTimeout(zoomHintTimerRef.current)
+      zoomHintTimerRef.current = null
+    }
+
+    if (zoomHintUnmountTimerRef.current) {
+      window.clearTimeout(zoomHintUnmountTimerRef.current)
+      zoomHintUnmountTimerRef.current = null
+    }
+
+    zoomHintUnmountTimerRef.current = window.setTimeout(() => {
+      setShowZoomHint(false)
+      zoomHintUnmountTimerRef.current = null
+    }, 220)
+
+    return () => {
+      window.cancelAnimationFrame(hideId)
+      if (zoomHintUnmountTimerRef.current) {
+        window.clearTimeout(zoomHintUnmountTimerRef.current)
+        zoomHintUnmountTimerRef.current = null
+      }
+    }
+  }, [mouseZoom.active, touchZoom.active, showZoomHint])
 
   if (loading) {
     return (
@@ -348,7 +448,7 @@ export default function ProductDetail() {
 
   if (error || !product) {
     return (
-    <main className="mx-auto w-full max-w-[1600px] px-4 py-8 pb-24 pt-12 sm:px-6 sm:pb-12 lg:pb-16">
+      <main className="mx-auto w-full max-w-[1600px] px-4 py-8 pb-24 pt-12 sm:px-6 sm:pb-12 lg:pb-16">
         <MobileBackButton to="/shop" label="Back to shop" />
         <p className="text-sm text-stone-600">{error || 'Product not found.'}</p>
       </main>
@@ -358,7 +458,15 @@ export default function ProductDetail() {
   const price = typeof product.price === 'number' ? product.price : 0
   const category = product.category
   const canBuy = maxQty >= 1
-  const imageSrc = product.images?.[0] ?? ''
+  const galleryImages = (product.images ?? []).filter((image) => {
+    if (typeof image !== 'string') return Boolean(image)
+    return image.trim().length > 0
+  })
+  const activeImageIndex = Math.min(
+    selectedImageIndex,
+    Math.max(0, galleryImages.length - 1)
+  )
+  const imageSrc = galleryImages[activeImageIndex] ?? ''
   const ambientColor = boostAmbientColor(ambientRgb)
 
   function closeViewer() {
@@ -371,6 +479,15 @@ export default function ProductDetail() {
   function openViewer() {
     if (!imageSrc) return
     setViewerOpen(true)
+  }
+
+  function selectImage(index) {
+    setSelectedImageIndex(index)
+    setViewerOpen(false)
+    hideZoom()
+    clearTouchHoldTimer()
+    touchLongPressRef.current = false
+    suppressNextClickRef.current = false
   }
 
   function clearTouchHoldTimer() {
@@ -535,7 +652,7 @@ export default function ProductDetail() {
       slug: product.slug,
       name: product.name,
       price: product.price,
-      image: product.images?.[0] ?? '',
+      image: imageSrc,
       quantity: qty,
     })
     addToast(`${qty}x ${product.name} added to cart`, 'success', 2500)
@@ -543,7 +660,7 @@ export default function ProductDetail() {
 
   return (
     <main
-      className="relative mx-auto w-full max-w-[1600px] overflow-hidden px-4 pb-[max(6rem,env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-12 sm:pt-8 lg:pb-16"
+      className="relative mx-auto w-full max-w-[1600px] overflow-hidden px-4 pb-40 pt-4 sm:px-6 sm:pb-14 sm:pt-8 lg:pb-16"
       style={{ '--ambient-rgb': ambientColor }}
     >
       <div
@@ -555,129 +672,237 @@ export default function ProductDetail() {
         className="pointer-events-none absolute left-1/2 top-6 -z-10 h-24 w-24 -translate-x-1/2 rounded-full bg-[rgba(var(--ambient-rgb),0.28)] blur-2xl sm:top-8 sm:h-28 sm:w-28"
       />
 
-      <div className="mb-1 flex justify-start sm:hidden">
-        <MobileBackButton to="/shop" label="Back to shop" variant="inline" />
-      </div>
-
       <div className="mt-2 grid gap-6 sm:mt-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] lg:items-start lg:gap-10">
-        <div className="overflow-hidden rounded-[32px] border border-white/70 bg-white/75 p-1.5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-2">
-          <div
-            ref={imageAreaRef}
-            role="button"
-            tabIndex={0}
-            aria-label="Open image preview"
-            onClick={handleImageClick}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                openViewer()
-              }
-            }}
-            onPointerDown={handleImagePointerDown}
-            onPointerUp={handleImagePointerUp}
-            onPointerCancel={() => {
-              clearTouchHoldTimer()
-              touchLongPressRef.current = false
-              hideZoom()
-            }}
-            onPointerLeave={() => {
-              clearTouchHoldTimer()
-              touchLongPressRef.current = false
-              hideZoom()
-            }}
-            onContextMenu={(event) => {
-              event.preventDefault()
-            }}
-            onPointerMove={handleImagePointerMove}
-            onPointerEnter={(event) => {
-              if (isZoomIgnoredTarget(event.target)) return
-
-              if (event.pointerType === 'mouse') {
-                const point = getZoomPoint(event)
-                if (!point) {
-                  setMouseZoom((current) => ({ ...current, active: false }))
-                  return
-                }
-                setMouseZoom({
-                  active: true,
-                  x: point.x,
-                  y: point.y,
-                })
-              }
-            }}
-            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-[26px] bg-stone-100/70 outline-none select-none focus-visible:ring-2 focus-visible:ring-stone-500/60 focus-visible:ring-offset-4 focus-visible:ring-offset-white"
-            style={{
-              touchAction: 'pan-y',
-              WebkitTouchCallout: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-            }}
-          >
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-[32px] border border-white/70 bg-white/75 p-1.5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-2">
             <div
-              aria-hidden
-              className="absolute inset-[4%] rounded-[22px] bg-[radial-gradient(circle_at_18%_16%,rgba(var(--ambient-rgb),0.78),transparent_18%),radial-gradient(circle_at_82%_18%,rgba(var(--ambient-rgb),0.52),transparent_14%),radial-gradient(circle_at_50%_72%,rgba(var(--ambient-rgb),0.24),transparent_26%)] blur-2xl sm:inset-[4%] sm:rounded-[26px]"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgba(var(--ambient-rgb),0.22)] via-transparent to-[rgba(var(--ambient-rgb),0.12)]" />
-            <div className="relative flex min-h-[min(70svh,720px)] items-center justify-center px-3 py-1.5 sm:min-h-[min(72svh,760px)] sm:px-5 sm:py-2 lg:min-h-[620px] lg:px-6 lg:py-4">
-              {imageSrc ? (
-                <img
-                  ref={imageRef}
-                  src={imageSrc}
-                  alt={product.name}
-                  crossOrigin="anonymous"
-                  onLoad={(event) => {
-                    const nextAmbient = getAmbientColor(event.currentTarget)
-                    ambientColorRef.current = nextAmbient
-                    setAmbientRgb(nextAmbient)
-                  }}
-                  className="h-full max-h-[86svh] w-full rounded-[18px] object-contain drop-shadow-[0_20px_45px_rgba(15,23,42,0.12)] transition duration-500 ease-out md:group-hover:scale-[1.24] md:group-hover:drop-shadow-[0_32px_80px_rgba(15,23,42,0.22)]"
-                  style={{
-                    transformOrigin: `${mouseZoom.x}% ${mouseZoom.y}%`,
-                    transform:
-                      mouseZoom.active && !touchZoom.active
-                        ? 'scale(1.52)'
-                        : undefined,
-                  }}
-                  loading="eager"
-                  decoding="async"
-                />
-              ) : (
-                <div className="flex min-h-[520px] items-center justify-center text-stone-400 sm:min-h-[620px]">
-                  <span className="text-sm">No image available</span>
-                </div>
-              )}
-            </div>
-            {touchZoom.active && imageSrc ? (
+              ref={imageAreaRef}
+              role="button"
+              tabIndex={0}
+              aria-label="Open image preview"
+              onClick={handleImageClick}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  openViewer()
+                }
+              }}
+              onPointerDown={handleImagePointerDown}
+              onPointerUp={handleImagePointerUp}
+              onPointerCancel={() => {
+                clearTouchHoldTimer()
+                touchLongPressRef.current = false
+                hideZoom()
+              }}
+              onPointerLeave={() => {
+                clearTouchHoldTimer()
+                touchLongPressRef.current = false
+                hideZoom()
+              }}
+              onContextMenu={(event) => {
+                event.preventDefault()
+              }}
+              onPointerMove={handleImagePointerMove}
+              onPointerEnter={(event) => {
+                if (isZoomIgnoredTarget(event.target)) return
+
+                if (event.pointerType === 'mouse') {
+                  const point = getZoomPoint(event)
+                  if (!point) {
+                    setMouseZoom((current) => ({ ...current, active: false }))
+                    return
+                  }
+                  setMouseZoom({
+                    active: true,
+                    x: point.x,
+                    y: point.y,
+                  })
+                }
+              }}
+              className="group relative block w-full cursor-zoom-in overflow-hidden rounded-[26px] bg-stone-100/70 outline-none select-none focus-visible:ring-2 focus-visible:ring-stone-500/60 focus-visible:ring-offset-4 focus-visible:ring-offset-white"
+              style={{
+                touchAction: 'pan-y',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                userSelect: 'none',
+              }}
+            >
               <div
                 aria-hidden
-                className="pointer-events-none absolute z-30 overflow-hidden rounded-full border border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.24)] ring-1 ring-black/10"
-                style={{
-                  width: `${TOUCH_LENS_SIZE}px`,
-                  height: `${TOUCH_LENS_SIZE}px`,
-                  left: `${touchZoom.left}px`,
-                  top: `${touchZoom.top}px`,
-                  transform: 'translate(-50%, -50%)',
-                  backgroundImage: `url(${imageSrc})`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundSize: '380%',
-                  backgroundPosition: `${touchZoom.x}% ${touchZoom.y}%`,
-                }}
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_58%,rgba(255,255,255,0.08)_100%)]" />
-              </div>
-            ) : null}
-            <div className="absolute right-4 top-4 z-20">
-              <WishlistButton
-                product={product}
-                className="h-11 w-11 bg-white/95 shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
-                iconClassName="h-5 w-5"
+                className="absolute inset-[4%] rounded-[22px] bg-[radial-gradient(circle_at_18%_16%,rgba(var(--ambient-rgb),0.78),transparent_18%),radial-gradient(circle_at_82%_18%,rgba(var(--ambient-rgb),0.52),transparent_14%),radial-gradient(circle_at_50%_72%,rgba(var(--ambient-rgb),0.24),transparent_26%)] blur-2xl sm:inset-[4%] sm:rounded-[26px]"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-[rgba(var(--ambient-rgb),0.22)] via-transparent to-[rgba(var(--ambient-rgb),0.12)]" />
+              <div className="absolute right-4 top-4 z-20">
+                <WishlistButton
+                  product={product}
+                  className="h-11 w-11 bg-white/95 shadow-[0_14px_30px_rgba(15,23,42,0.16)]"
+                  iconClassName="h-5 w-5"
+                />
+              </div>
+              {showZoomHint ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-4 sm:bottom-4">
+                  <div
+                    className={`hidden items-center gap-1.5 rounded-full border border-white/50 bg-white/54 px-4 py-2 text-[11px] font-semibold text-stone-700/90 shadow-[0_10px_22px_rgba(15,23,42,0.1)] backdrop-blur-lg transition-all duration-300 ease-out will-change-transform sm:inline-flex ${
+                      zoomHintReady
+                        ? 'opacity-100 translate-y-0 scale-100'
+                        : 'opacity-0 translate-y-2 scale-95'
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5 text-stone-500"
+                      aria-hidden="true"
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <span>Hover to inspect</span>
+                  </div>
+                  <div
+                    className={`flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-full border border-white/50 bg-white/58 text-stone-700/90 shadow-[0_10px_22px_rgba(15,23,42,0.1)] backdrop-blur-lg transition-all duration-300 ease-out will-change-transform sm:hidden ${
+                      zoomHintReady
+                        ? 'opacity-100 translate-y-0 scale-100'
+                        : 'opacity-0 translate-y-2 scale-95'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-0.5 text-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4 text-stone-500"
+                        aria-hidden="true"
+                      >
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="m20 20-3.5-3.5" />
+                      </svg>
+                      <span className="text-[9px] font-semibold uppercase tracking-[0.16em] leading-none">
+                        Hold
+                      </span>
+                      <span className="text-[7px] font-medium uppercase tracking-[0.18em] leading-none text-stone-500">
+                        to zoom
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <div className="relative flex min-h-[min(52svh,500px)] items-center justify-center px-3 py-3 sm:min-h-[min(68svh,720px)] sm:px-5 sm:py-4 lg:min-h-[640px] lg:px-6 lg:py-5">
+                {imageSrc ? (
+                  <img
+                    ref={imageRef}
+                    src={imageSrc}
+                    alt={product.name}
+                    crossOrigin="anonymous"
+                    onLoad={(event) => {
+                      setAmbientRgb(getAmbientColor(event.currentTarget))
+                    }}
+                    className={`h-full max-h-[86svh] w-full rounded-[18px] object-contain drop-shadow-[0_20px_45px_rgba(15,23,42,0.12)] transform-gpu will-change-transform transition duration-500 ease-out motion-reduce:transition-none md:group-hover:scale-[1.08] md:group-hover:drop-shadow-[0_32px_80px_rgba(15,23,42,0.22)] ${
+                      canBuy ? '' : 'grayscale opacity-80'
+                    }`}
+                    style={{
+                      transformOrigin: `${mouseZoom.x}% ${mouseZoom.y}%`,
+                      transform:
+                        mouseZoom.active && !touchZoom.active
+                          ? 'scale(1.34)'
+                          : undefined,
+                    }}
+                    loading="eager"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="flex min-h-[520px] items-center justify-center text-stone-400 sm:min-h-[620px]">
+                    <span className="text-sm">No image available</span>
+                  </div>
+                )}
+              </div>
+              {!canBuy ? (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/8 backdrop-blur-[1px]">
+                  <div className="rounded-full border border-white/70 bg-stone-950/86 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.24)]">
+                    Out of stock
+                  </div>
+                </div>
+              ) : null}
+              {touchZoom.active && imageSrc ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute z-30 overflow-hidden rounded-full border border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.24)] ring-1 ring-black/10"
+                  style={{
+                    width: `${TOUCH_LENS_SIZE}px`,
+                    height: `${TOUCH_LENS_SIZE}px`,
+                    left: `${touchZoom.left}px`,
+                    top: `${touchZoom.top}px`,
+                    transform: 'translate(-50%, -50%)',
+                    transition:
+                      'left 120ms ease-out, top 120ms ease-out, background-position 120ms ease-out',
+                    backgroundImage: `url(${imageSrc})`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: '380%',
+                    backgroundPosition: `${touchZoom.x}% ${touchZoom.y}%`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_58%,rgba(255,255,255,0.08)_100%)]" />
+                </div>
+              ) : null}
             </div>
           </div>
+
+          {galleryImages.length > 1 ? (
+            <div className="rounded-[28px] border border-white/70 bg-white/82 p-3 shadow-[0_18px_45px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-4">
+              <div className="flex items-center justify-between gap-3 px-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                  Gallery
+                </p>
+                <p className="text-xs text-stone-500">
+                  {galleryImages.length} photo{galleryImages.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none sm:grid sm:grid-cols-5 sm:overflow-visible">
+                {galleryImages.map((image, index) => {
+                  const isSelected = activeImageIndex === index
+
+                  return (
+                    <button
+                      key={`${image}-${index}`}
+                      type="button"
+                      aria-label={`Show image ${index + 1} of ${galleryImages.length}`}
+                      aria-pressed={isSelected}
+                      onClick={() => selectImage(index)}
+                      className={`relative h-20 w-16 shrink-0 overflow-hidden rounded-[18px] border bg-stone-100 transition duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-24 sm:w-full ${
+                        isSelected
+                          ? 'border-stone-950 ring-2 ring-stone-900/10'
+                          : 'border-stone-200 hover:-translate-y-0.5 hover:border-stone-300'
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                      />
+                      {isSelected ? (
+                        <span className="absolute inset-0 rounded-[18px] ring-2 ring-white/90 ring-inset" />
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        <div className="flex flex-col gap-4 lg:sticky lg:top-24">
-          <div className="rounded-[28px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-6">
+        <div className="flex flex-col gap-4">
+          <div className="rounded-[30px] border border-white/75 bg-white/86 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-6 lg:sticky lg:top-24 lg:self-start">
             {category?.slug ? (
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500 sm:text-[13px]">
                 <Link
@@ -693,79 +918,100 @@ export default function ProductDetail() {
               {product.name}
             </h1>
 
-            <p className="mt-4 text-3xl font-semibold tabular-nums text-stone-900 sm:text-[2.15rem]">
-              {rupee}
-              {price.toLocaleString('en-IN')}
-            </p>
-          </div>
-
-          {product.description ? (
-            <div className="rounded-[28px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-6">
-              <p className="text-[13px] font-semibold uppercase tracking-[0.2em] text-stone-700">
-                Description
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-stone-500">
+                Price
               </p>
-              <p className="mt-3 text-sm leading-7 text-stone-600 sm:text-[15px]">
-                {product.description}
-              </p>
+              <div className="mt-2 flex items-end gap-1 text-stone-950">
+                <span className="pb-0.5 text-[1.45rem] font-semibold leading-none sm:text-[1.7rem]">
+                  {rupee}
+                </span>
+                <span className="text-[2.45rem] font-semibold tabular-nums tracking-[-0.05em] leading-none sm:text-[2.95rem]">
+                  {price.toLocaleString('en-IN')}
+                </span>
+              </div>
             </div>
-          ) : null}
 
-          <div className="rounded-[28px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-6">
-            {canBuy ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                    Select quantity
-                  </p>
-                  <p className="mt-1 text-sm text-stone-500">
-                    Choose how many pieces you want.
-                  </p>
-                </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {!canBuy ? (
+                <span className="inline-flex items-center rounded-full bg-stone-100 px-3 py-1.5 text-xs font-semibold text-stone-600">
+                  Out of stock
+                </span>
+              ) : null}
+            </div>
 
-                <div className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 p-1 shadow-sm">
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold text-stone-700 transition touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40"
-                    disabled={qty <= 1}
-                    onClick={() => setQty((current) => Math.max(1, current - 1))}
-                    aria-label="Decrease quantity"
-                  >
-                    {minus}
-                  </button>
-                  <span className="min-w-[3rem] text-center text-base font-semibold tabular-nums text-stone-900">
-                    {qty}
-                  </span>
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold text-stone-700 transition touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40"
-                    disabled={qty >= maxQty}
-                    onClick={() => setQty((current) => Math.min(maxQty, current + 1))}
-                    aria-label="Increase quantity"
-                  >
-                    +
-                  </button>
+            <div className="mt-5 rounded-[24px] border border-stone-200/80 bg-stone-50/80 p-4 shadow-sm">
+              {canBuy ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Select quantity
+                    </p>
+                    <p className="mt-1 text-sm text-stone-500">
+                      Choose how many pieces you want.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex items-center rounded-full border border-stone-200 bg-white p-1 shadow-sm">
+                    <button
+                      type="button"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold text-stone-700 transition touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40"
+                      disabled={qty <= 1}
+                      onClick={() => setQty((current) => Math.max(1, current - 1))}
+                      aria-label="Decrease quantity"
+                    >
+                      {minus}
+                    </button>
+                    <span className="min-w-[3rem] text-center text-base font-semibold tabular-nums text-stone-900">
+                      {qty}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold text-stone-700 transition touch-manipulation [-webkit-tap-highlight-color:transparent] active:bg-stone-200 disabled:opacity-40"
+                      disabled={qty >= maxQty}
+                      onClick={() => setQty((current) => Math.min(maxQty, current + 1))}
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
+              ) : null}
+
+              <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={!canBuy}
+                  onClick={addToCart}
+                  className="w-full min-h-[48px] rounded-xl bg-stone-950 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_18px_35px_rgba(15,23,42,0.18)] transition touch-manipulation [-webkit-tap-highlight-color:transparent] active:translate-y-px active:opacity-90 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500 sm:text-sm lg:min-h-[46px]"
+                >
+                  {canBuy ? 'Add to cart' : 'Out of stock'}
+                </button>
+
+                <Link
+                  to="/cart"
+                  className="flex min-h-[48px] w-full items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-stone-800 no-underline transition [-webkit-tap-highlight-color:transparent] active:bg-stone-50 sm:text-sm lg:min-h-[46px] sm:hover:border-stone-300"
+                >
+                  View cart
+                </Link>
+              </div>
+            </div>
+
+            {product.description ? (
+              <div className="mt-4 rounded-[28px] border border-white/75 bg-white/86 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] ring-1 ring-black/[0.03] backdrop-blur-xl sm:p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Description
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-stone-900 sm:text-xl">
+                  About this piece
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-stone-600 sm:text-[15px]">
+                  {product.description}
+                </p>
               </div>
             ) : null}
-
-            <div className="mt-5 space-y-2.5">
-              <button
-                type="button"
-                disabled={!canBuy}
-                onClick={addToCart}
-                className="w-full min-h-[54px] rounded-2xl bg-stone-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_35px_rgba(15,23,42,0.18)] transition touch-manipulation [-webkit-tap-highlight-color:transparent] active:translate-y-px active:opacity-90 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
-              >
-                {canBuy ? 'Add to cart' : 'Out of stock'}
-              </button>
-
-              <Link
-                to="/cart"
-                className="flex min-h-[50px] w-full items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 no-underline transition [-webkit-tap-highlight-color:transparent] active:bg-stone-50 sm:hover:border-stone-300"
-              >
-                View cart
-              </Link>
-            </div>
           </div>
+
         </div>
       </div>
 

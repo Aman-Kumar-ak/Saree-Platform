@@ -12,12 +12,12 @@ export function CategoryShowcase({ items = [] }) {
   const mediaFrameHeightClass = 'h-[30rem] sm:h-[31.5rem] lg:h-[33rem]'
 
   return (
-    <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 pt-2 scrollbar-none snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pt-0 lg:grid-cols-4">
+    <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 pt-2 scrollbar-none snap-x snap-mandatory scroll-px-4 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pt-0 lg:grid-cols-4">
       {items.map((item, index) => (
         <Link
           key={item.id}
           to={item.href}
-          className="group flex w-[84vw] flex-none snap-start flex-col overflow-hidden rounded-[1.8rem] bg-[#fcfaf6] text-stone-900 no-underline ring-1 ring-stone-200/90 shadow-[0_18px_36px_rgba(45,33,21,0.08)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_rgba(45,33,21,0.12)] sm:w-auto sm:flex-auto"
+          className="group flex w-[84vw] flex-none snap-center flex-col overflow-hidden rounded-[1.8rem] bg-[#fcfaf6] text-stone-900 no-underline ring-1 ring-stone-200/90 shadow-[0_18px_36px_rgba(45,33,21,0.08)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_rgba(45,33,21,0.12)] sm:w-auto sm:flex-auto"
         >
           <div className="px-4 pt-4">
             <div

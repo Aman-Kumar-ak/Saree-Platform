@@ -91,4 +91,7 @@ export const QUICK_PRICE_FILTERS = [
   { label: 'Under Rs. 699', params: { priceMax: 699 } },
   { label: 'Under Rs. 999', params: { priceMax: 999 } },
   { label: 'Under Rs. 1499', params: { priceMax: 1499 } },
+  { label: 'Under Rs. 2999', params: { priceMax: 2999 } },
+  { label: 'Under Rs. 4999', params: { priceMax: 4999 } },
+  { label: 'Under Rs. 9999', params: { priceMax: 9999 } },
 ]

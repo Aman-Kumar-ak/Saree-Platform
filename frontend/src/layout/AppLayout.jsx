@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link, Outlet, useLocation, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 
 export function AppLayout() {
   const title = import.meta.env.VITE_APP_TITLE ?? ''
   const location = useLocation()
+  const navigationType = useNavigationType()
   const { itemCount } = useCart()
   const { user, ready } = useAuth()
   const [showHeader, setShowHeader] = useState(true)
@@ -147,6 +148,26 @@ export function AppLayout() {
               : 'Shop'
     document.title = title ? `${title} \u00b7 ${viewTitle}` : viewTitle
   }, [isCart, isHome, isOrders, isProfile, isWishlist, title])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual'
+    }
+
+    return () => {
+      window.history.scrollRestoration = 'auto'
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    if (navigationType !== 'POP') {
+      window.scrollTo(0, 0)
+    }
+  }, [navigationType, location.pathname, location.search, location.hash])
 
   useEffect(() => {
     function updateHeaderVisibility() {

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createHash } from "node:crypto";
 import { Category } from "../models/Category.js";
 import { Order } from "../models/Order.js";
 import { Product } from "../models/Product.js";
@@ -202,11 +203,20 @@ homeRouter.get("/", async (_req, res, next) => {
     const silkCategory = firstCategory(categories, (category) =>
       /silk/i.test(category.name)
     );
+    const chiffonCategory = firstCategory(categories, (category) =>
+      /chiffon/i.test(category.name)
+    );
+    const organzaCategory = firstCategory(categories, (category) =>
+      /organza/i.test(category.name)
+    );
     const designerCategory = firstCategory(categories, (category) =>
       /designer/i.test(category.name)
     );
     const banarasiCategory = firstCategory(categories, (category) =>
       /banarasi/i.test(category.name)
+    );
+    const kanjivaramCategory = firstCategory(categories, (category) =>
+      /kanjivaram/i.test(category.name)
     );
 
     const under699 = filterProducts(products, (product) => product.price <= 699);
@@ -219,11 +229,20 @@ homeRouter.get("/", async (_req, res, next) => {
     const silkEdit = silkCategory
       ? filterProducts(products, (product) => String(product.category?._id) === String(silkCategory._id))
       : [];
+    const chiffonEdit = chiffonCategory
+      ? filterProducts(products, (product) => String(product.category?._id) === String(chiffonCategory._id))
+      : [];
+    const organzaEdit = organzaCategory
+      ? filterProducts(products, (product) => String(product.category?._id) === String(organzaCategory._id))
+      : [];
     const designerEdit = designerCategory
       ? filterProducts(products, (product) => String(product.category?._id) === String(designerCategory._id))
       : [];
     const banarasiEdit = banarasiCategory
       ? filterProducts(products, (product) => String(product.category?._id) === String(banarasiCategory._id))
+      : [];
+    const kanjivaramEdit = kanjivaramCategory
+      ? filterProducts(products, (product) => String(product.category?._id) === String(kanjivaramCategory._id))
       : [];
 
     const quickCollections = [
@@ -267,6 +286,26 @@ homeRouter.get("/", async (_req, res, next) => {
         products: takeRotatedWindow(cottonEdit, 6, rotationSeed),
         accentFrom: "sky",
       }),
+      createCollectionCard({
+        id: "chiffon-edit",
+        title: chiffonCategory?.name ?? "Chiffon Edit",
+        eyebrow: "Airy Drape",
+        description: "Feather-light chiffon styles with soft motion and a polished finish.",
+        ctaLabel: "Explore chiffon",
+        href: createHref({ category: chiffonCategory?.slug, collection: "chiffon-edit" }),
+        products: takeRotatedWindow(chiffonEdit, 6, rotationSeed + 3),
+        accentFrom: "emerald",
+      }),
+      createCollectionCard({
+        id: "organza-edit",
+        title: organzaCategory?.name ?? "Organza Edit",
+        eyebrow: "Sheer Finish",
+        description: "Modern organza picks that feel refined, bright, and occasion ready.",
+        ctaLabel: "Explore organza",
+        href: createHref({ category: organzaCategory?.slug, collection: "organza-edit" }),
+        products: takeRotatedWindow(organzaEdit, 6, rotationSeed + 4),
+        accentFrom: "rose",
+      }),
     ].filter(Boolean);
 
     const featuredCollections = [
@@ -299,6 +338,16 @@ homeRouter.get("/", async (_req, res, next) => {
         href: createHref({ category: designerCategory?.slug, collection: "designer-edit" }),
         products: takeRotatedWindow(designerEdit, 8, rotationSeed + 3),
         accentFrom: "stone",
+      }),
+      createCollectionCard({
+        id: "kanjivaram-edit",
+        title: kanjivaramCategory?.name ?? "Kanjivaram Edit",
+        eyebrow: "Heirloom Finish",
+        description: "Traditional Kanjivaram styles with a strong ceremonial presence.",
+        ctaLabel: "Explore Kanjivaram",
+        href: createHref({ category: kanjivaramCategory?.slug, collection: "kanjivaram-edit" }),
+        products: takeRotatedWindow(kanjivaramEdit, 8, rotationSeed + 4),
+        accentFrom: "amber",
       }),
       createCollectionCard({
         id: "silk-story",
@@ -346,7 +395,7 @@ homeRouter.get("/", async (_req, res, next) => {
     const homepageFeatured = assignUniqueSectionImages(
       takeUniqueCards(
         [liveFeaturedAd ?? fallbackAdCard, ...featuredCollections].filter(Boolean),
-        4,
+        6,
         usedFingerprints
       ),
       rotationSeed + 11
@@ -356,7 +405,7 @@ homeRouter.get("/", async (_req, res, next) => {
     const homepageBudgetCollections = assignUniqueSectionImages(
       takeUniqueCards(
         [liveBudgetAd ?? fallbackAdCard, ...quickCollections].filter(Boolean),
-        4,
+        6,
         usedFingerprints
       ),
       rotationSeed + 13
@@ -396,7 +445,7 @@ homeRouter.get("/", async (_req, res, next) => {
     );
     const newArrivals = takeRotatedWindow(newestProducts, 8, rotationSeed);
 
-    res.json({
+    const responseBody = {
       heroSlides,
       quickCollections: homepageBudgetCollections,
       featuredCollections: homepageFeatured,
@@ -404,6 +453,14 @@ homeRouter.get("/", async (_req, res, next) => {
       trendingProducts,
       weeklyPicks: weeklyProducts.slice(0, 8),
       newArrivals,
+    };
+    const revision = createHash("sha1")
+      .update(JSON.stringify(responseBody))
+      .digest("hex");
+
+    res.json({
+      revision,
+      ...responseBody,
     });
   } catch (err) {
     next(err);
