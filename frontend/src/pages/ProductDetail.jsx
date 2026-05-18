@@ -101,6 +101,8 @@ function boostAmbientColor(rgb) {
 
 function ImageViewerModal({ open, src, alt, onClose }) {
   const [zoomed, setZoomed] = useState(false)
+  const isPhonePreview =
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
 
   useEffect(() => {
     if (!open) return undefined
@@ -130,7 +132,7 @@ function ImageViewerModal({ open, src, alt, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label={`${alt} image preview`}
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-md"
+      className="fixed inset-0 z-[120] bg-black/70 px-4 py-6 backdrop-blur-md"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -139,33 +141,44 @@ function ImageViewerModal({ open, src, alt, onClose }) {
         type="button"
         onClick={onClose}
         aria-label="Close image preview"
-        className="fixed right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-[150] inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/12 text-white shadow-[0_16px_36px_rgba(0,0,0,0.28)] transition hover:bg-white/18 active:scale-[0.98]"
+        className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[240] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/16 text-white shadow-[0_16px_36px_rgba(0,0,0,0.28)] transition hover:bg-white/24 active:scale-[0.98] sm:right-4 sm:top-[calc(env(safe-area-inset-top)+1rem)] sm:h-12 sm:w-12"
       >
         <span className="text-2xl leading-none">{String.fromCharCode(215)}</span>
       </button>
 
-      <div className="flex h-full w-full items-center justify-center">
-        <button
-          type="button"
-          aria-label={zoomed ? 'Zoom out image preview' : 'Zoom in image preview'}
-          aria-pressed={zoomed}
-          onClick={() => setZoomed((current) => !current)}
-          className="relative block max-h-[88svh] max-w-[min(96vw,1100px)] overflow-auto rounded-[28px] bg-transparent p-0 outline-none touch-manipulation [-webkit-tap-highlight-color:transparent]"
-        >
-          <img
-            src={src}
-            alt={alt}
-            className={`block rounded-[28px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-out ${
-              zoomed
-                ? 'w-[125vw] max-w-none cursor-zoom-out'
-                : 'max-h-[88svh] w-auto max-w-full cursor-zoom-in'
-            }`}
-            draggable="false"
-            style={{
-              transformOrigin: 'center center',
-            }}
-          />
-        </button>
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+        {isPhonePreview ? (
+          <div className="max-h-[88svh] max-w-[min(96vw,1100px)] overflow-hidden rounded-[28px] bg-transparent">
+            <img
+              src={src}
+              alt={alt}
+              className="block max-h-[88svh] w-auto max-w-full rounded-[28px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
+              draggable="false"
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            aria-label={zoomed ? 'Zoom out image preview' : 'Zoom in image preview'}
+            aria-pressed={zoomed}
+            onClick={() => setZoomed((current) => !current)}
+            className="relative block max-h-[88svh] max-w-[min(96vw,1100px)] overflow-auto rounded-[28px] bg-transparent p-0 outline-none touch-manipulation [-webkit-tap-highlight-color:transparent]"
+          >
+            <img
+              src={src}
+              alt={alt}
+              className={`block rounded-[28px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-out ${
+                zoomed
+                  ? 'w-[125vw] max-w-none cursor-zoom-out'
+                  : 'max-h-[88svh] w-auto max-w-full cursor-zoom-in'
+              }`}
+              draggable="false"
+              style={{
+                transformOrigin: 'center center',
+              }}
+            />
+          </button>
+        )}
       </div>
     </div>,
     document.body
@@ -198,6 +211,8 @@ export default function ProductDetail() {
   const imageRef = useRef(null)
   const imageAreaRef = useRef(null)
   const touchHoldTimerRef = useRef(null)
+  const touchLensRafRef = useRef(null)
+  const touchLensTargetRef = useRef(null)
   const zoomHintTimerRef = useRef(null)
   const zoomHintUnmountTimerRef = useRef(null)
   const touchStartRef = useRef({ x: 0, y: 0 })
@@ -385,12 +400,17 @@ export default function ProductDetail() {
           setShowZoomHint(false)
           zoomHintUnmountTimerRef.current = null
         }, 220)
-      }, 5000)
+      }, 10000)
     })
 
     return () => {
       cancelled = true
       window.cancelAnimationFrame(id)
+      if (touchLensRafRef.current) {
+        window.cancelAnimationFrame(touchLensRafRef.current)
+        touchLensRafRef.current = null
+      }
+      touchLensTargetRef.current = null
       if (hintShowId) {
         window.clearTimeout(hintShowId)
       }
@@ -497,6 +517,29 @@ export default function ProductDetail() {
     }
   }
 
+  function updateTouchLens(point) {
+    touchLensTargetRef.current = point
+
+    if (touchLensRafRef.current) return
+
+    touchLensRafRef.current = window.requestAnimationFrame(() => {
+      touchLensRafRef.current = null
+      const nextPoint = touchLensTargetRef.current
+      touchLensTargetRef.current = null
+      if (!nextPoint) return
+      setTouchZoom((current) => {
+        if (!current.active) return current
+        return {
+          ...current,
+          x: nextPoint.x,
+          y: nextPoint.y,
+          left: nextPoint.left,
+          top: nextPoint.top,
+        }
+      })
+    })
+  }
+
   function getZoomPoint(event) {
     const wrapper = imageAreaRef.current
     const image = imageRef.current
@@ -528,6 +571,11 @@ export default function ProductDetail() {
   }
 
   function hideZoom() {
+    if (touchLensRafRef.current) {
+      window.cancelAnimationFrame(touchLensRafRef.current)
+      touchLensRafRef.current = null
+    }
+    touchLensTargetRef.current = null
     setMouseZoom((current) => ({ ...current, active: false }))
     setTouchZoom((current) => ({ ...current, active: false }))
   }
@@ -611,8 +659,7 @@ export default function ProductDetail() {
       const wrapper = imageAreaRef.current?.getBoundingClientRect()
       if (!wrapper) return
       const lensPosition = getTouchLensPosition(point, wrapper)
-      setTouchZoom({
-        active: true,
+      updateTouchLens({
         x: point.x,
         y: point.y,
         left: lensPosition.left,
@@ -762,7 +809,7 @@ export default function ProductDetail() {
                       <circle cx="11" cy="11" r="7" />
                       <path d="m20 20-3.5-3.5" />
                     </svg>
-                    <span>Hover to inspect</span>
+                    <span>Hover to zoom</span>
                   </div>
                   <div
                     className={`flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-full border border-white/50 bg-white/58 text-stone-700/90 shadow-[0_10px_22px_rgba(15,23,42,0.1)] backdrop-blur-lg transition-all duration-300 ease-out will-change-transform sm:hidden ${
@@ -841,9 +888,8 @@ export default function ProductDetail() {
                     height: `${TOUCH_LENS_SIZE}px`,
                     left: `${touchZoom.left}px`,
                     top: `${touchZoom.top}px`,
-                    transform: 'translate(-50%, -50%)',
-                    transition:
-                      'left 120ms ease-out, top 120ms ease-out, background-position 120ms ease-out',
+                    transform: 'translate3d(-50%, -50%, 0)',
+                    transition: 'background-position 80ms linear',
                     backgroundImage: `url(${imageSrc})`,
                     backgroundRepeat: 'no-repeat',
                     backgroundSize: '380%',
@@ -886,7 +932,7 @@ export default function ProductDetail() {
                       <img
                         src={image}
                         alt=""
-                        loading="lazy"
+                        loading="eager"
                         decoding="async"
                         className="h-full w-full object-cover"
                       />

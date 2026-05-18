@@ -27,7 +27,7 @@ export function CategoryShowcase({ items = [] }) {
                 <img
                   src={item.image}
                   alt={item.title}
-                  className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.03]"
+                  className="h-full w-full object-cover object-top transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.08]"
                 />
               ) : (
                 <div className="h-full w-full bg-[linear-gradient(135deg,_#f0dfd1,_#f5efe7)]" />

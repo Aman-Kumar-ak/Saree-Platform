@@ -343,7 +343,7 @@ function MiniAdTile({ label, ad, onPreview, emptyMessage = 'Nothing prepared yet
           <img
             src={preview.image}
             alt={preview.title ?? ad?.title ?? label}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full object-cover transform-gpu transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.08]"
           />
         ) : null}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,24,39,0.2),rgba(17,24,39,0.85))]" />

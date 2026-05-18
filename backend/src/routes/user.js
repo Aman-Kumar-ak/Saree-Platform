@@ -4,6 +4,7 @@ import { Order } from '../models/Order.js'
 import { Product } from '../models/Product.js'
 import { User } from '../models/User.js'
 import { requireAuth } from '../middleware/requireAuth.js'
+import { cartSnapshotFromUser, normalizeCartItems } from '../lib/cart.js'
 
 const router = Router()
 
@@ -40,6 +41,19 @@ async function loadWishlistProducts(userId) {
   return productIds
     .map((id) => productMap.get(String(id)))
     .filter(Boolean)
+}
+
+async function loadCartSnapshot(userId) {
+  const user = await User.findById(userId)
+    .select('cartItems cartUpdatedAt')
+    .lean()
+    .exec()
+
+  if (!user) {
+    return null
+  }
+
+  return cartSnapshotFromUser(user)
 }
 
 // Get all orders for logged-in user
@@ -92,6 +106,37 @@ router.get('/wishlist', requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: 'User not found' })
     }
     res.json({ items })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/cart', requireAuth, async (req, res, next) => {
+  try {
+    const cart = await loadCartSnapshot(req.authUser._id)
+    if (cart === null) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    res.json(cart)
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.put('/cart', requireAuth, async (req, res, next) => {
+  try {
+    const items = normalizeCartItems(req.body?.items)
+    const user = await User.findById(req.authUser._id).exec()
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    user.cartItems = items
+    user.cartUpdatedAt = new Date()
+    await user.save()
+
+    const cart = cartSnapshotFromUser(user)
+    res.json(cart)
   } catch (err) {
     next(err)
   }

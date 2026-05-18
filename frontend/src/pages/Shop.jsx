@@ -7,6 +7,22 @@ import { apiUrl } from '../config/api.js'
 import { CUSTOMER_RETRY_MESSAGE } from '../lib/errorMessages.js'
 import { QUICK_PRICE_FILTERS } from '../lib/shopQuery.js'
 
+function buildCategoryFallback(products = []) {
+  const seen = new Map()
+
+  products.forEach((product) => {
+    const category = product?.category
+    if (!category?.slug || !category?.name) return
+    if (seen.has(category.slug)) return
+    seen.set(category.slug, {
+      slug: category.slug,
+      name: category.name,
+    })
+  })
+
+  return [...seen.values()]
+}
+
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams()
   const categorySlug = searchParams.get('category') ?? ''
@@ -20,6 +36,7 @@ export default function Shop() {
   const [applied, setApplied] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -37,27 +54,41 @@ export default function Shop() {
 
       const suffix = query.toString() ? `?${query.toString()}` : ''
 
-      try {
-        const [catRes, prodRes] = await Promise.all([
-          fetch(apiUrl('/api/categories')).then((response) => {
-            if (!response.ok) throw new Error('Categories request failed')
-            return response.json()
-          }),
-          fetch(apiUrl(`/api/products${suffix}`)).then((response) => {
-            if (!response.ok) throw new Error('Products request failed')
-            return response.json()
-          }),
-        ])
+      const [catResult, prodResult] = await Promise.allSettled([
+        fetch(apiUrl('/api/categories')).then((response) => {
+          if (!response.ok) throw new Error('Categories request failed')
+          return response.json()
+        }),
+        fetch(apiUrl(`/api/products${suffix}`)).then((response) => {
+          if (!response.ok) throw new Error('Products request failed')
+          return response.json()
+        }),
+      ])
 
-        if (cancelled) return
-        setCategories(catRes.categories ?? [])
-        setProducts(prodRes.products ?? [])
-        setApplied(prodRes.applied ?? null)
-      } catch {
-        if (!cancelled) setError(CUSTOMER_RETRY_MESSAGE)
-      } finally {
-        if (!cancelled) setLoading(false)
+      if (cancelled) return
+
+      const nextProducts =
+        prodResult.status === 'fulfilled' ? prodResult.value?.products ?? [] : null
+      const nextApplied =
+        prodResult.status === 'fulfilled' ? prodResult.value?.applied ?? null : null
+      const nextCategories =
+        catResult.status === 'fulfilled'
+          ? catResult.value?.categories ?? []
+          : buildCategoryFallback(nextProducts ?? [])
+
+      setCategories(nextCategories)
+
+      if (prodResult.status === 'fulfilled') {
+        setProducts(nextProducts ?? [])
+        setApplied(nextApplied)
+        setError(null)
+      } else {
+        setProducts([])
+        setApplied(null)
+        setError(CUSTOMER_RETRY_MESSAGE)
       }
+
+      if (!cancelled) setLoading(false)
     }
 
     run()
@@ -65,7 +96,7 @@ export default function Shop() {
     return () => {
       cancelled = true
     }
-  }, [categorySlug, priceMax, priceMin, search, sort])
+  }, [categorySlug, priceMax, priceMin, retryTick, search, sort])
 
   const categoryButtons = useMemo(() => {
     const all = { slug: '', name: 'All' }
@@ -103,6 +134,10 @@ export default function Shop() {
     setSearchParams({})
   }
 
+  function retryLoad() {
+    setRetryTick((current) => current + 1)
+  }
+
   const correctionSummary =
     Array.isArray(applied?.corrections) && applied.corrections.length > 0
       ? applied.corrections.map((entry) => `${entry.from} -> ${entry.to}`).join(', ')
@@ -111,6 +146,31 @@ export default function Shop() {
     Boolean(applied?.correctedSearch) &&
     applied.correctedSearch !== search &&
     Boolean(correctionSummary)
+
+  if (error) {
+    return (
+      <main className="mx-auto flex min-h-[100svh] w-full max-w-[1600px] items-center justify-center px-4 py-10 sm:px-6">
+        <div className="w-full max-w-md rounded-[2rem] border border-amber-200/80 bg-amber-50/95 px-6 py-8 text-center shadow-sm ring-1 ring-black/[0.03]">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-700">
+            Error loading shop
+          </p>
+          <h2 className="mt-3 font-['Georgia','Times_New_Roman',serif] text-3xl leading-tight text-amber-950">
+            We could not load this catalog right now
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-amber-900/90">
+            {error} We will try again with a fresh request.
+          </p>
+          <button
+            type="button"
+            onClick={retryLoad}
+            className="mt-6 inline-flex items-center justify-center rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+          >
+            Retry
+          </button>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-4 pt-4 pb-24 sm:px-6 sm:pt-6 sm:pb-16 lg:pb-12">
@@ -226,12 +286,7 @@ export default function Shop() {
           className="min-h-[32svh] py-10"
         />
       )}
-      {error && (
-        <div className="mt-6 rounded-2xl border border-amber-200/90 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950 sm:mt-8">
-          {error}
-        </div>
-      )}
-      {!loading && !error && products.length === 0 && (
+      {!loading && products.length === 0 ? (
         <div className="mt-8 rounded-[1.8rem] border border-stone-200 bg-white p-6 text-center shadow-sm">
           <h2 className="font-['Georgia','Times_New_Roman',serif] text-2xl text-stone-950">
             No matching products right now
@@ -248,8 +303,7 @@ export default function Shop() {
             </Link>
           </div>
         </div>
-      )}
-      {!loading && !error && products.length > 0 && (
+      ) : !loading && products.length > 0 ? (
         <ul className="mt-6 grid list-none grid-cols-2 gap-3 p-0 pb-6 sm:mt-8 sm:grid-cols-3 sm:gap-4 sm:pb-10 lg:grid-cols-4 lg:pb-6">
           {products.map((product) => (
             <li key={product._id}>
@@ -257,7 +311,7 @@ export default function Shop() {
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </main>
   )
 }

@@ -109,7 +109,11 @@ export async function placeCodOrder({ lines, address, userId }) {
         {
           $inc: { orderCount: 1, totalSpent: totalAmount },
           $push: { orderIds: created._id },
-          $set: { lastOrderDate: new Date() },
+          $set: {
+            lastOrderDate: new Date(),
+            cartItems: [],
+            cartUpdatedAt: new Date(),
+          },
         },
         { session }
       );

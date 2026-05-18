@@ -14,6 +14,22 @@ const addressSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const cartItemSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    slug: { type: String, default: "" },
+    name: { type: String, default: "" },
+    price: { type: Number, default: 0, min: 0 },
+    image: { type: String, default: "" },
+    quantity: { type: Number, default: 1, min: 1, max: 99 },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     firebaseUid: { type: String, unique: true, sparse: true, trim: true },
@@ -28,6 +44,8 @@ const userSchema = new mongoose.Schema(
     },
     // Embedded user data for fast access
     addresses: [addressSchema],
+    cartItems: { type: [cartItemSchema], default: [] },
+    cartUpdatedAt: { type: Date, default: null },
     orderIds: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -513,7 +513,7 @@ function ItemThumb({ src, alt }) {
           src={src}
           alt={alt}
           className="h-full w-full object-contain"
-          loading="lazy"
+          loading="eager"
           onError={() => setHasError(true)}
         />
       ) : (

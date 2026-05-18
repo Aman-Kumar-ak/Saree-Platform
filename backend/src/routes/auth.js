@@ -12,6 +12,7 @@ import {
 } from "../services/authThrottle.js";
 import { upsertUserFromFirebase } from "../services/upsertUserFromFirebase.js";
 import { User } from "../models/User.js";
+import { cartSnapshotFromUser } from "../lib/cart.js";
 
 export const authRouter = Router();
 
@@ -67,6 +68,7 @@ authRouter.post("/firebase", async (req, res, next) => {
     await clearOtpVerifyFailures(phone10);
 
     const token = signUserToken(user);
+    const cart = cartSnapshotFromUser(user);
     res.json({
       token,
       user: {
@@ -74,6 +76,8 @@ authRouter.post("/firebase", async (req, res, next) => {
         name: user.name,
         phone: user.phone,
         role: user.role,
+        cartItems: cart.items,
+        cartUpdatedAt: cart.updatedAt,
       },
     });
   } catch (err) {
@@ -98,12 +102,15 @@ authRouter.post("/firebase", async (req, res, next) => {
 
 authRouter.get("/me", requireAuth, (req, res) => {
   const u = req.authUser;
+  const cart = cartSnapshotFromUser(u);
   res.json({
     user: {
       id: String(u._id),
       name: u.name,
       phone: u.phone,
       role: u.role,
+      cartItems: cart.items,
+      cartUpdatedAt: cart.updatedAt,
     },
   });
 });

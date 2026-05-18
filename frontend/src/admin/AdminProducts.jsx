@@ -523,7 +523,7 @@ function ProductCardThumb({ src, alt }) {
           src={src}
           alt={alt}
           className="max-h-full max-w-full object-contain"
-          loading="lazy"
+          loading="eager"
           onError={() => setHasError(true)}
         />
       ) : (
@@ -561,7 +561,7 @@ function ImagePreviewList({ title, images, onRemoveImage }) {
                     src={src}
                     alt="Selected product"
                     className="h-full w-full object-contain p-1.5 transition group-hover:scale-[1.02]"
-                    loading="lazy"
+                    loading="eager"
                   />
                 </button>
                 <div className="min-w-0 flex flex-1 flex-col justify-center gap-2">
@@ -780,7 +780,6 @@ function EditProductDialog({
     document.body
   )
 }
-
 
 
 

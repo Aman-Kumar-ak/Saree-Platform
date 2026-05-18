@@ -1,14 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
-import CachedImage from './CachedImage.jsx'
 import { WishlistButton } from './WishlistButton.jsx'
 
 export function ProductCard({ product }) {
   const { addOrUpdate, lines } = useCart()
   const { addToast } = useToast()
   const img = product.images?.[0]
-  const imageVersion = product.updatedAt ?? product.createdAt ?? ''
   const price = typeof product.price === 'number' ? product.price : 0
   const isOutOfStock =
     typeof product.stock === 'number' ? product.stock < 1 : false
@@ -50,18 +48,16 @@ export function ProductCard({ product }) {
             aria-label={`View ${product.name}`}
             className="absolute inset-0 z-10 block min-h-[44px] no-underline text-inherit outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 [-webkit-tap-highlight-color:transparent]"
           />
-          <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-100 to-stone-200/80">
+            <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-100 to-stone-200/80">
             {img ? (
-              <CachedImage
-                key={`${img}-${imageVersion}`}
+              <img
                 src={img}
-                version={imageVersion}
                 alt={product.name}
-                loading="lazy"
+                loading="eager"
                 decoding="async"
-                className="h-full w-full"
-                imageClassName={`h-full w-full object-cover transition-[transform,filter,opacity] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  isOutOfStock ? 'grayscale' : 'sm:group-hover:scale-[1.09]'
+                fetchPriority="high"
+                className={`absolute inset-0 h-full w-full object-cover transform-gpu transition-transform duration-500 ease-out will-change-transform ${
+                  isOutOfStock ? 'grayscale' : 'group-hover:scale-[1.08]'
                 }`}
               />
             ) : (
